@@ -1,0 +1,40 @@
+<view class="page">
+  <view wx:if="{{!isAdmin && venmo}}" class="card small">
+    请 Venmo <text class="bold">{{venmo}}</text> 或现金支付给管理员，管理员确认后状态会更新。有未付罚款时不能报名。
+  </view>
+
+  <view class="row mb" style="padding: 0 8rpx;">
+    <text wx:for="{{tabs}}" wx:key="key" class="{{tab === item.key ? 'bold' : 'sub'}}" style="margin-right:40rpx;" data-key="{{item.key}}" bindtap="switchTab">{{item.label}}</text>
+    <view class="flex1"></view>
+    <text class="sub small">共 {{fines.length}} 笔 {{totalText}}</text>
+  </view>
+
+  <view class="card" wx:if="{{fines.length}}">
+    <view wx:if="{{isAdmin && tab === 'pending'}}" class="row small link mb" bindtap="toggleAll">全选 / 取消全选</view>
+    <view wx:for="{{fines}}" wx:key="_id" class="row" style="padding:16rpx 0; border-bottom:1rpx solid #eee;"
+      data-index="{{index}}" bindtap="onRowTap">
+      <checkbox wx:if="{{isAdmin && tab === 'pending'}}" checked="{{item.checked}}" color="#111" style="transform:scale(.8);" />
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill" />
+      <view class="flex1" style="margin-left:20rpx;">
+        <view class="row-between">
+          <text>{{item.name}} <text class="tag {{item.reason === 'manual' ? '' : 'tag-bad'}}">{{item.reasonText}}</text></text>
+          <text class="bold">{{item.amountText}}</text>
+        </view>
+        <view class="sub small ellipsis">{{item.gameText || item.dateText}}</view>
+        <view wx:if="{{tab !== 'pending'}}" class="sub small">{{item.statusText}}<text wx:if="{{item.note}}"> · {{item.note}}</text></view>
+      </view>
+    </view>
+  </view>
+  <view wx:else class="empty">{{loaded ? '没有记录' : ''}}</view>
+</view>
+
+<view class="bottom-bar" wx:if="{{isAdmin && tab === 'pending' && selectedCount}}">
+  <view class="small mb">已选 {{selectedCount}} 笔，共 {{selectedText}}</view>
+  <view class="row">
+    <button class="btn flex1" data-method="venmo" bindtap="markPaid">已付 Venmo</button>
+    <view class="gap"></view>
+    <button class="btn flex1" data-method="cash" bindtap="markPaid">已付 现金</button>
+    <view class="gap"></view>
+    <button class="btn btn-ghost flex1" bindtap="waive">豁免</button>
+  </view>
+</view>

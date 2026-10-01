@@ -1,0 +1,32 @@
+<view class="page" wx:if="{{s}}">
+  <view class="card row">
+    <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <image class="avatar avatar-lg" src="{{s.avatar}}" mode="aspectFill" />
+    </button>
+    <view class="flex1" style="margin-left:28rpx;">
+      <input type="nickname" class="bold" style="font-size:34rpx;" value="{{nickname}}" placeholder="点击设置昵称" bindinput="onNickInput" bindblur="saveNick" bindconfirm="saveNick" maxlength="20" />
+      <view class="sub small mt">请用群里大家认识你的名字，方便认人</view>
+    </view>
+  </view>
+
+  <view wx:if="{{fines.length}}" class="card">
+    <view class="card-title bad">待付罚款</view>
+    <view wx:for="{{fines}}" wx:key="_id" class="field" data-id="{{item.clubId}}" bindtap="openFines">
+      <view class="flex1">
+        <view>{{item.clubName}} · {{item.reasonText}}</view>
+        <view class="sub small" wx:if="{{item.venmo}}">Venmo {{item.venmo}} 或现金</view>
+      </view>
+      <text class="bold bad">{{item.amountText}}</text>
+    </view>
+    <view class="hint">付清前无法在该球队报名</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">我的球队</view>
+    <view wx:for="{{s.clubs}}" wx:key="clubId" class="field" data-id="{{item.clubId}}" bindtap="openClub">
+      <text>{{item.clubName}}</text>
+      <text class="sub small">{{item.role === 'owner' ? '创建者' : item.role === 'admin' ? '管理员' : '成员'}} ›</text>
+    </view>
+    <view wx:if="{{!s.clubs.length}}" class="empty small">还没有加入球队</view>
+  </view>
+</view>

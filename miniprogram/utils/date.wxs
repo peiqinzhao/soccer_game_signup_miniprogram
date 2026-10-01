@@ -1,0 +1,33 @@
+// WXML 里用的日期显示工具（WXS 语法：只能用 var 和 function）
+var WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+
+function parse(d) {
+  var p = d.split('-');
+  return getDate(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]));
+}
+
+function pad(n) {
+  return n < 10 ? '0' + n : '' + n;
+}
+
+// '2026-10-04' -> '2026-10-04 周日'
+function withWeek(d) {
+  if (!d) return '';
+  return d + ' 周' + WEEK[parse(d).getDay()];
+}
+
+// '2026-10-04', 1 -> '10月3日(周六)'
+function daysBefore(d, n) {
+  if (!d) return '';
+  var p = d.split('-');
+  var x = getDate(parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]) - n);
+  return (x.getMonth() + 1) + '月' + x.getDate() + '日(周' + WEEK[x.getDay()] + ')';
+}
+
+// '2026-10-04' -> '周日'
+function week(d) {
+  if (!d) return '';
+  return '周' + WEEK[parse(d).getDay()];
+}
+
+module.exports = { withWeek: withWeek, daysBefore: daysBefore, week: week };

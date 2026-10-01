@@ -1,0 +1,15 @@
+{
+  "name": "game-signup-miniprogram",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WeChat mini program for pickup soccer sign-ups, GPS check-in, fines and team fund",
+  "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test cloudfunctions/api/test/*.test.js"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^5.2.3",
+    "typescript": "^5.6.0"
+  }
+}

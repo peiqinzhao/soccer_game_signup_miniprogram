@@ -1,0 +1,190 @@
+<view class="page" wx:if="{{d}}">
+  <!-- 比赛信息 -->
+  <view class="card">
+    <view class="row-between">
+      <view class="card-title flex1">{{d.game.title}}</view>
+      <text wx:if="{{d.game.status === 'cancelled'}}" class="tag tag-bad">已取消</text>
+      <text wx:elif="{{ended}}" class="tag">已结束</text>
+    </view>
+    <view class="sub">🕘 {{timeText}}</view>
+    <view wx:if="{{localText}}" class="sub small">{{localText}}</view>
+    <view class="sub" bindtap="openMap">📍 {{d.game.venue.name}} <text class="link small">地图</text></view>
+    <view class="sub small" wx:if="{{d.game.venue.address}}">{{d.game.venue.address}}</view>
+    <view class="sub">⚽ {{formatStr}}</view>
+    <view class="sub small mt">
+      {{d.club.name}} · 开赛 {{d.game.lateGraceMin}} 分钟后未签到记迟到，罚 {{fineText}}
+    </view>
+    <view class="sub small">缺席不转发罚款截止：{{d.game.local.cancelDeadline}}</view>
+    <view wx:if="{{d.game.note}}" class="mt" style="white-space: pre-wrap;">{{d.game.note}}</view>
+  </view>
+
+  <!-- 取消 / 变更 -->
+  <view wx:if="{{d.game.status === 'cancelled'}}" class="card" style="background:#fdecea;">
+    <view class="bad bold">比赛已取消</view>
+    <view class="small mt">原因：{{d.game.cancelReason || '管理员取消'}}</view>
+  </view>
+  <view wx:elif="{{d.game.lastChange && !ended}}" class="card" style="background:#fff4e0;">
+    <view class="warn bold">⚠️ 比赛有变更</view>
+    <view class="small mt">{{d.game.lastChange.text}}</view>
+  </view>
+
+  <!-- 报名开放提醒 -->
+  <view wx:if="{{signupNotOpen && !myStatus && d.game.status === 'active'}}" class="card">
+    <view class="bold">报名将于 {{d.game.local.signupOpens}} 开放</view>
+    <view wx:if="{{d.me.isAdmin}}" class="sub small mt">你是管理员，可以提前报名</view>
+    <block wx:elif="{{openTemplate}}">
+      <view wx:if="{{d.me.openReminder}}" class="ok small mt">✓ 已设置提醒，报名开放后几分钟内通过微信通知你</view>
+      <view wx:else class="link mt" bindtap="onSetOpenReminder">🔔 报名开放时提醒我</view>
+    </block>
+  </view>
+
+  <!-- 未付罚款 -->
+  <view wx:if="{{unpaidText}}" class="card" style="background:#fdecea;">
+    <view class="bad bold">你有未付罚款 {{unpaidText}}</view>
+    <view class="small mt">付清前无法报名。请{{d.club.venmo ? 'Venmo ' + d.club.venmo + ' 或' : ''}}现金支付给管理员，管理员确认后即可报名。</view>
+  </view>
+
+  <!-- 签到 -->
+  <view wx:if="{{myStatus === 'registered' && d.game.status === 'active'}}" class="card">
+    <view wx:if="{{d.me.reg.checkinAt}}" class="row-between">
+      <text class="ok bold">✓ 已签到 {{myCheckinText}}</text>
+      <text wx:if="{{d.me.reg.checkinAt > d.game.cutoffAt}}" class="tag tag-bad">迟到</text>
+    </view>
+    <view wx:elif="{{canCheckin}}">
+      <button class="btn" bindtap="onCheckin">到场签到</button>
+      <view class="hint">需在球场 {{d.game.venue.radiusM}} 米内。{{d.game.local.cutoff}} 后签到记为迟到。</view>
+      <view class="small link mt" bindtap="onCheckinByCode">定位有问题？用签到码</view>
+    </view>
+    <view wx:elif="{{checkinNotYet}}" class="sub">签到将于 {{checkinOpensText}} 开放（开赛前 {{d.game.checkinOpenBeforeMin}} 分钟）</view>
+    <view wx:if="{{changeTemplate && !d.me.reg.subscribedChange && !settled}}" class="small link mt" bindtap="onSubscribeChange">🔔 比赛改时间或取消时通知我</view>
+  </view>
+
+  <!-- 分队 -->
+  <view wx:if="{{d.teams && d.game.status === 'active'}}" class="card">
+    <view class="row-between">
+      <text class="bold">分队 · {{formatStr}}</text>
+      <text wx:if="{{d.teams.formed}}" class="link small" bindtap="openTeams">查看全部分队 ›</text>
+    </view>
+    <block wx:if="{{d.teams.formed}}">
+      <view wx:if="{{d.teams.myTeam}}" class="mt" style="font-size:34rpx;">
+        你在 <text class="bold">{{d.teams.myTeam}} 队</text>
+        <text wx:if="{{d.teams.goalkeeper}}"> · 守门员第 <text class="bold">{{d.teams.myGk}}</text> 位</text>
+      </view>
+      <view wx:elif="{{myStatus === 'registered'}}" class="sub mt">已分队，你签到后会自动分到人最少的队</view>
+      <view class="sub small mt">{{teamSizesText}}</view>
+    </block>
+    <view wx:else class="sub mt">已签到 {{d.teams.checkedIn}}/{{d.teams.threshold}}，满 {{d.teams.threshold}} 人自动随机分队</view>
+    <view wx:if="{{d.me.isAdmin && !settled}}" class="row mt">
+      <text wx:if="{{!d.teams.formed}}" class="btn btn-ghost btn-sm" bindtap="onFormTeams">立即分队</text>
+      <text wx:else class="btn btn-ghost btn-sm" bindtap="onReshuffle">重新随机</text>
+    </view>
+  </view>
+
+  <!-- 管理员 -->
+  <view wx:if="{{d.me.isAdmin && d.game.status === 'active'}}" class="card">
+    <view class="row-between">
+      <text class="bold">管理员</text>
+      <view class="row">
+        <text class="btn btn-ghost btn-sm" bindtap="toggleCode">签到码</text>
+        <text wx:if="{{!settled}}" class="btn btn-ghost btn-sm" style="margin-left:12rpx;" bindtap="onEdit">编辑</text>
+        <text wx:if="{{!settled}}" class="btn btn-danger btn-sm" style="margin-left:12rpx;" bindtap="onCancelGame">取消比赛</text>
+      </view>
+    </view>
+    <view wx:if="{{code.show}}" class="mt" style="text-align:center;">
+      <view style="font-size:96rpx; font-weight:700; letter-spacing:16rpx;">{{code.value}}</view>
+      <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
+    </view>
+    <view class="hint">点名单里的人可以：代签到、修正出勤、豁免或确认罚款、修改名字；「缺席」里截止后才取消的人可以罚“缺席未转发”</view>
+  </view>
+
+  <!-- 名单 -->
+  <view class="card">
+    <view class="row-between mb">
+      <view class="row">
+        <text class="{{tab === 'registered' ? 'bold' : 'sub'}}" data-tab="registered" bindtap="switchTab">已报名 {{registered.length}}</text>
+        <text class="{{tab === 'waitlist' ? 'bold' : 'sub'}}" style="margin-left:32rpx;" data-tab="waitlist" bindtap="switchTab">替补 {{waitlist.length}}</text>
+        <text class="{{tab === 'cancelled' ? 'bold' : 'sub'}}" style="margin-left:32rpx;" data-tab="cancelled" bindtap="switchTab">缺席 {{cancelled.length}}</text>
+      </view>
+      <text class="small">剩余 {{d.game.capacity - d.game.registeredCount > 0 ? d.game.capacity - d.game.registeredCount : 0}}/{{d.game.capacity}}</text>
+    </view>
+    <block wx:for="{{list}}" wx:key="openid">
+      <view class="row" style="padding: 14rpx 0;" bindtap="onPersonTap" data-openid="{{item.openid}}" data-name="{{item.name}}" data-status="{{item.status}}" data-phase="{{item.cancelPhase}}">
+        <text class="sub small" style="width:44rpx;">{{index + 1}}</text>
+        <image class="avatar" src="{{item.avatar}}" mode="aspectFill" />
+        <view class="flex1" style="margin-left:20rpx;">
+          <view class="row">
+            <text class="ellipsis">{{item.name}}</text>
+            <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
+            <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
+            <text wx:if="{{item.fineText}}" class="tag {{item.fineClass}}">{{item.fineText}}</text>
+          </view>
+          <view class="sub small">
+            {{item.timeText}}<text wx:if="{{item.inviterName}}"> · 来自 {{item.inviterName}} 的邀请</text>
+          </view>
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{!list.length}}" class="empty small">暂无</view>
+  </view>
+</view>
+
+<!-- 底部按钮 -->
+<view class="bottom-bar row" wx:if="{{d && d.game.status === 'active' && !ended}}">
+  <button class="btn btn-ghost" style="width:180rpx;" open-type="share">分享</button>
+  <view class="gap"></view>
+  <block wx:if="{{myStatus === 'registered' && d.me.reg.checkinAt}}">
+    <button class="btn flex1" disabled>已签到</button>
+  </block>
+  <block wx:elif="{{myStatus === 'registered' && pastCutoff}}">
+    <button class="btn flex1" disabled>比赛进行中</button>
+  </block>
+  <block wx:elif="{{myStatus === 'registered'}}">
+    <button class="btn btn-ghost flex1" bindtap="onCancel">{{started ? '取消报名（算临时取消）' : '取消报名'}}</button>
+  </block>
+  <block wx:elif="{{myStatus === 'waitlist' && !pastCutoff}}">
+    <button class="btn btn-ghost flex1" bindtap="onCancel">退出替补</button>
+  </block>
+  <block wx:elif="{{started}}">
+    <button class="btn flex1" disabled>比赛已开始</button>
+  </block>
+  <block wx:elif="{{signupNotOpen && !d.me.isAdmin}}">
+    <button class="btn flex1" disabled>{{d.game.local.signupOpens}} 开放报名</button>
+  </block>
+  <block wx:elif="{{full}}">
+    <button class="btn flex1" bindtap="onWaitlist">排队替补</button>
+  </block>
+  <block wx:else>
+    <button class="btn flex1" bindtap="onSignup">{{signupNotOpen ? '报名（管理员提前）' : '报名'}}</button>
+  </block>
+</view>
+
+<!-- 取消后提示转发 -->
+<view class="mask" wx:if="{{shareDialog.show}}">
+  <view class="dialog">
+    <view class="dialog-title">{{shareDialog.phase === 'free' ? '已取消报名' : '请转发到群里'}}</view>
+    <view class="dialog-body">
+      <block wx:if="{{shareDialog.phase === 'free'}}">推荐转发到群里，让大家知道有空位。</block>
+      <block wx:else>已过缺席不转发罚款截止时间，<text class="bold">必须</text>转发到群里，方便没报上的人递补。</block>
+      <view wx:if="{{shareDialog.fined}}" class="bad mt">距开赛不足 1 小时取消，已记为缺席并产生罚款，管理员可视情况豁免。</view>
+    </view>
+    <button class="btn" open-type="share">转发到群</button>
+    <view class="sub small mt" style="text-align:center;" bindtap="closeShareDialog">
+      {{shareDialog.phase === 'free' ? '不用了' : '我已经在群里说过了'}}
+    </view>
+  </view>
+</view>
+
+<!-- 管理员取消/修改后：提示转发到群 -->
+<view class="mask" wx:if="{{notice.show}}">
+  <view class="dialog">
+    <view class="dialog-title">{{notice.kind === 'cancelled' ? '比赛已取消' : '比赛已修改'}}</view>
+    <view class="dialog-body">
+      <view wx:if="{{notice.notified}}">已通过微信通知 {{notice.notified}} 位开启了通知的报名者。</view>
+      <view>没开通知的人收不到私信，请转发到群里让大家知道。</view>
+    </view>
+    <button class="btn" open-type="share">转发到群</button>
+    <view class="sub small mt" style="text-align:center;" bindtap="closeNotice">稍后再说</view>
+  </view>
+</view>
+
+<profile-dialog show="{{showProfile}}" bind:done="onProfileDone" bind:cancel="onProfileCancel" />

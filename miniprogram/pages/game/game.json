@@ -1,0 +1,5 @@
+{
+  "navigationBarTitleText": "比赛",
+  "enablePullDownRefresh": true,
+  "usingComponents": { "profile-dialog": "/components/profile-dialog/profile-dialog" }
+}

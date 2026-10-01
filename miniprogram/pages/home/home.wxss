@@ -1,0 +1,4 @@
+.clubs { white-space: nowrap; margin: 0 -24rpx 24rpx; width: calc(100% + 48rpx); }
+.clubs-inner { display: inline-flex; padding: 0 24rpx; }
+.club-chip { display: inline-flex; align-items: center; background: #fff; border-radius: 40rpx; padding: 16rpx 28rpx; margin-right: 16rpx; font-size: 28rpx; }
+.club-chip-add { background: transparent; border: 2rpx dashed #bbb; }

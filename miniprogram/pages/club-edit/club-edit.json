@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "球队设置",
+  "usingComponents": { "profile-dialog": "/components/profile-dialog/profile-dialog" }
+}

@@ -1,0 +1,36 @@
+<view class="page" wx:if="{{ready}}">
+  <view class="card">
+    <view class="field">
+      <text class="field-label">球队名称</text>
+      <input class="field-value" value="{{name}}" data-key="name" bindinput="onInput" placeholder="如：湾区养生足球" maxlength="30" />
+    </view>
+    <view class="field">
+      <text class="field-label">Venmo 收款账号</text>
+      <input class="field-value" value="{{venmo}}" data-key="venmo" bindinput="onInput" placeholder="@your-venmo" />
+    </view>
+    <view class="hint">罚款提示里会显示这个账号</view>
+  </view>
+
+  <view class="card" wx:if="{{clubId}}">
+    <view class="card-title">默认规则</view>
+    <view class="hint mb">只影响之后新发起的比赛</view>
+    <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">默认时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
+    </picker>
+    <view class="field">
+      <text class="field-label">罚款金额（$）</text>
+      <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
+    </view>
+    <view wx:for="{{numFields}}" wx:key="key" class="field">
+      <text class="field-label">{{item.label}}（{{item.unit}}）</text>
+      <input class="field-value" type="number" value="{{nums[item.key]}}" data-key="nums.{{item.key}}" bindinput="onInput" />
+    </view>
+    <picker mode="time" value="{{cancelDeadlineTime}}" data-key="cancelDeadlineTime" bindchange="onPick">
+      <view class="field"><text class="field-label">缺席不转发罚款截止时刻</text><text class="field-value">{{cancelDeadlineTime}} ›</text></view>
+    </picker>
+  </view>
+
+  <button class="btn" bindtap="save">{{clubId ? '保存' : '创建球队'}}</button>
+</view>
+
+<profile-dialog show="{{showProfile}}" bind:done="onProfileDone" bind:cancel="onProfileCancel" />

@@ -1,0 +1,112 @@
+<wxs src="../../utils/date.wxs" module="dt" />
+<view class="page" wx:if="{{ready}}">
+  <view wx:if="{{!gameId}}" class="row-between mb" style="padding: 0 8rpx;">
+    <text class="sub small">{{copied ? '已复制上一场，日期顺延到下周' : ''}}</text>
+    <text class="link" bindtap="importTemplate">从模板导入 ›</text>
+  </view>
+
+  <view class="card">
+    <picker mode="date" value="{{date}}" start="{{today}}" data-key="date" bindchange="onPick">
+      <view class="field"><text class="field-label">日期</text><text class="field-value">{{dt.withWeek(date)}} ›</text></view>
+    </picker>
+    <picker mode="time" value="{{time}}" data-key="time" bindchange="onPick">
+      <view class="field"><text class="field-label">开始时间</text><text class="field-value">{{time}} ›</text></view>
+    </picker>
+    <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
+    </picker>
+    <view class="field">
+      <text class="field-label">时长</text>
+      <view class="chips">
+        <text wx:for="{{durations}}" wx:key="*this" class="chip {{durationMin === item ? 'on' : ''}}" data-v="{{item}}" bindtap="pickDuration">{{item / 60}} 小时</text>
+      </view>
+    </view>
+    <view wx:if="{{venues.length}}">
+      <picker range="{{venues}}" range-key="name" value="{{venueIndex}}" data-key="venueIndex" bindchange="onPick">
+        <view class="field"><text class="field-label">场地</text><text class="field-value">{{venueIndex >= 0 ? venues[venueIndex].name : '请选择'}} ›</text></view>
+      </picker>
+    </view>
+    <view class="field" wx:else bindtap="addVenue">
+      <text class="field-label">场地</text><text class="field-value link">还没有场地，去添加 ›</text>
+    </view>
+    <view wx:if="{{venues.length}}" class="hint link" bindtap="addVenue">+ 添加新场地</view>
+    <view class="field">
+      <text class="field-label">赛制</text>
+      <text class="field-value bold">{{formatText}}</text>
+    </view>
+    <view class="field">
+      <text class="field-label">每队人数</text>
+      <view class="chips">
+        <text wx:for="{{sizeOptions}}" wx:key="*this" class="chip {{teamSize === item ? 'on' : ''}}" data-key="teamSize" data-v="{{item}}" bindtap="pickFormat">{{item}}</text>
+        <text class="chip {{teamSize !== 5 && teamSize !== 7 && teamSize !== 8 ? 'on' : ''}}" data-key="teamSize" data-v="0" bindtap="pickFormat">{{teamSize !== 5 && teamSize !== 7 && teamSize !== 8 ? teamSize : '自定义'}}</text>
+      </view>
+    </view>
+    <view class="field">
+      <text class="field-label">队数</text>
+      <view class="chips">
+        <text wx:for="{{countOptions}}" wx:key="*this" class="chip {{teamCount === item ? 'on' : ''}}" data-key="teamCount" data-v="{{item}}" bindtap="pickFormat">{{item}} 队</text>
+        <text class="chip {{teamCount > 3 ? 'on' : ''}}" data-key="teamCount" data-v="0" bindtap="pickFormat">{{teamCount > 3 ? teamCount + ' 队' : '自定义'}}</text>
+      </view>
+    </view>
+    <view class="field">
+      <text class="field-label">人数上限</text>
+      <input class="field-value" type="number" value="{{capacity}}" data-key="capacity" bindinput="onInput" />
+    </view>
+    <view class="field">
+      <text class="field-label">自动分队</text>
+      <switch checked="{{autoTeams}}" data-key="autoTeams" bindchange="onSwitch" color="#111" />
+    </view>
+    <view wx:if="{{autoTeams}}" class="hint">{{teamsRule}}管理员也可以随时“立即分队”或“重新随机”。</view>
+    <view wx:if="{{autoTeams}}" class="field">
+      <text class="field-label">守门员轮换顺序</text>
+      <switch checked="{{goalkeeper}}" data-key="goalkeeper" bindchange="onSwitch" color="#111" />
+    </view>
+    <view class="field">
+      <text class="field-label">标题（选填）</text>
+      <input class="field-value" value="{{title}}" data-key="title" bindinput="onInput" placeholder="{{dt.week(date)}} · {{venueIndex >= 0 ? venues[venueIndex].name : '场地'}}" maxlength="30" />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="field">
+      <text class="field-label">定时开放报名</text>
+      <switch checked="{{scheduled}}" data-key="scheduled" bindchange="onSwitch" color="#111" />
+    </view>
+    <block wx:if="{{scheduled}}">
+      <picker mode="date" value="{{signupDate}}" start="{{today}}" data-key="signupDate" bindchange="onPick">
+        <view class="field"><text class="field-label">开放日期</text><text class="field-value">{{dt.withWeek(signupDate)}} ›</text></view>
+      </picker>
+      <picker mode="time" value="{{signupTime}}" data-key="signupTime" bindchange="onPick">
+        <view class="field"><text class="field-label">开放时间</text><text class="field-value">{{signupTime}} ›</text></view>
+      </picker>
+    </block>
+    <view class="field">
+      <text class="field-label">缺席不转发罚款截止</text>
+      <view class="row">
+        <picker mode="date" value="{{deadlineDate}}" end="{{date}}" data-key="deadlineDate" bindchange="onPick">
+          <text>{{dt.daysBefore(deadlineDate, 0)}}</text>
+        </picker>
+        <picker mode="time" value="{{deadlineTime}}" data-key="deadlineTime" bindchange="onPick">
+          <text style="margin-left:12rpx;">{{deadlineTime}} ›</text>
+        </picker>
+      </view>
+    </view>
+    <view class="hint">这个时间之后取消报名，必须转发到群里找人递补；开赛前 {{settings.penaltyWindowMin}} 分钟内取消视为缺席并罚款。默认比赛前 {{settings.cancelDeadlineDaysBefore}} 天 {{settings.cancelDeadlineTime}}，点日期或时间可修改。</view>
+    <view class="field">
+      <text class="field-label">迟到宽限（分钟）</text>
+      <input class="field-value" type="number" value="{{lateGraceMin}}" data-key="lateGraceMin" bindinput="onInput" />
+    </view>
+    <view class="field">
+      <text class="field-label">罚款金额（$）</text>
+      <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">备注</view>
+    <textarea value="{{note}}" data-key="note" bindinput="onInput" maxlength="500" auto-height placeholder="自带深浅球衣，尽量穿 turf 鞋…" style="width:100%; min-height:160rpx;" />
+  </view>
+
+  <button class="btn" bindtap="save">{{gameId ? '保存修改' : '发起比赛'}}</button>
+  <view class="link small mt" style="text-align:center;" bindtap="saveAsTemplate">保存为模板</view>
+</view>

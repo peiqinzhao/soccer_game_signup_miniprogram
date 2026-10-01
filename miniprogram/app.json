@@ -1,0 +1,36 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/me/me",
+    "pages/game/game",
+    "pages/game-edit/game-edit",
+    "pages/club/club",
+    "pages/club-edit/club-edit",
+    "pages/venue/venue",
+    "pages/fines/fines",
+    "pages/ledger/ledger",
+    "pages/teams/teams"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "养生足球",
+    "backgroundColor": "#f2f2f2"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#111111",
+    "backgroundColor": "#ffffff",
+    "list": [
+      { "pagePath": "pages/home/home", "text": "比赛" },
+      { "pagePath": "pages/me/me", "text": "我的" }
+    ]
+  },
+  "requiredPrivateInfos": ["getLocation", "chooseLocation"],
+  "permission": {
+    "scope.userLocation": { "desc": "用于到场签到，判断你是否在球场附近" }
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents"
+}

@@ -1,0 +1,40 @@
+<view class="page">
+  <!-- 我的球队：放在顶部，横向滑动 -->
+  <scroll-view scroll-x class="clubs" enhanced show-scrollbar="{{false}}">
+    <view class="clubs-inner">
+      <view wx:for="{{clubs}}" wx:key="clubId" class="club-chip" bindtap="openClub" data-id="{{item.clubId}}">
+        <text class="bold">{{item.clubName}}</text>
+        <text wx:if="{{item.role !== 'member'}}" class="sub small" style="margin-left:8rpx;">{{item.role === 'owner' ? '创建者' : '管理员'}}</text>
+        <text class="sub" style="margin-left:8rpx;">›</text>
+      </view>
+      <view class="club-chip club-chip-add" bindtap="createClub"><text class="link">+ 创建球队</text></view>
+    </view>
+  </scroll-view>
+
+  <view class="row mb" style="padding: 0 8rpx;">
+    <text class="{{tab === 'upcoming' ? 'bold' : 'sub'}}" data-tab="upcoming" bindtap="switchTab">近期比赛</text>
+    <text class="{{tab === 'history' ? 'bold' : 'sub'}}" style="margin-left:40rpx;" data-tab="history" bindtap="switchTab">历史比赛</text>
+  </view>
+  <view wx:for="{{games}}" wx:key="_id" class="card" style="{{item.stateText ? 'opacity:.6;' : ''}}" bindtap="openGame" data-id="{{item._id}}">
+    <view class="row-between">
+      <view class="card-title flex1 ellipsis">{{item.title}}</view>
+      <text wx:if="{{item.stateText}}" class="tag {{item.status === 'cancelled' ? 'tag-bad' : ''}}">{{item.stateText}}</text>
+      <text wx:if="{{item.statusText}}" class="tag {{item.statusClass}}">{{item.statusText}}</text>
+    </view>
+    <view class="sub">🕘 {{item.timeText}}</view>
+    <view wx:if="{{item.localText}}" class="sub small">{{item.localText}}</view>
+    <view class="sub">📍 {{item.venue.name}}</view>
+    <view wx:if="{{item.status === 'cancelled'}}" class="bad small">取消原因：{{item.cancelReason || '管理员取消'}}</view>
+    <view wx:elif="{{item.lastChange && !item.stateText}}" class="warn small">⚠️ {{item.lastChange.text}}</view>
+    <view class="row-between mt">
+      <text class="sub small">{{item.clubName}}</text>
+      <text class="small">已报名 {{item.registeredCount}}/{{item.capacity}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{loaded && !games.length}}" class="empty">
+    <view>{{tab === 'history' ? '还没有历史比赛' : '暂时没有比赛'}}</view>
+    <view class="small mt" wx:if="{{tab === 'upcoming' && !clubs.length}}">点击群里的比赛卡片报名即可加入球队</view>
+  </view>
+
+</view>

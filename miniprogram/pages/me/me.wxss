@@ -1,0 +1,2 @@
+.avatar-btn { padding: 0; margin: 0; width: 120rpx; height: 120rpx; border-radius: 50%; background: none; line-height: 1; }
+.avatar-btn::after { border: none; }

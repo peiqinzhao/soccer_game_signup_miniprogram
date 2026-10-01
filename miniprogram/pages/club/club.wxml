@@ -1,0 +1,54 @@
+<view class="page" wx:if="{{c}}">
+  <view class="card">
+    <view class="card-title">{{c.club.name}}</view>
+    <view class="sub small" wx:if="{{c.club.venmo}}">罚款 / 基金收款：Venmo {{c.club.venmo}}</view>
+    <view class="sub small">我是{{c.me.isOwner ? '创建者' : c.me.isAdmin ? '管理员' : '成员'}} · 共 {{c.members.length}} 人</view>
+  </view>
+
+  <view class="card">
+    <view wx:if="{{c.me.isAdmin}}" class="field" data-to="newGame" bindtap="go">
+      <text class="bold">发起比赛</text><text class="sub">›</text>
+    </view>
+    <view class="field" data-to="fines" bindtap="go">
+      <text>{{c.me.isAdmin ? '罚款管理' : '我的罚款'}}</text>
+      <text class="sub"><text wx:if="{{c.pendingFines}}" class="tag tag-bad">{{c.pendingFines}} 笔待处理</text> ›</text>
+    </view>
+    <view class="field" data-to="ledger" bindtap="go">
+      <text>足球基金</text><text class="sub">›</text>
+    </view>
+    <view wx:if="{{c.me.isAdmin}}" class="field" data-to="settings" bindtap="go">
+      <text>球队设置</text><text class="sub">›</text>
+    </view>
+  </view>
+
+  <view wx:if="{{c.me.isAdmin}}" class="card">
+    <view class="row-between mb">
+      <text class="card-title" style="margin:0;">场地</text>
+      <text class="link small" data-to="newVenue" bindtap="go">+ 添加</text>
+    </view>
+    <view wx:for="{{c.venues}}" wx:key="_id" class="field" data-id="{{item._id}}" bindtap="editVenue">
+      <view class="flex1">
+        <view>{{item.name}}</view>
+        <view class="sub small ellipsis">{{item.address || item.lat + ', ' + item.lng}} · 签到范围 {{item.radiusM}}m</view>
+      </view>
+      <text class="sub">›</text>
+    </view>
+    <view wx:if="{{!c.venues.length}}" class="empty small">还没有场地</view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">成员</view>
+    <view wx:for="{{c.members}}" wx:key="openid" class="row" style="padding:14rpx 0;" data-index="{{index}}" bindtap="onMemberTap">
+      <image class="avatar" src="{{item.avatar}}" mode="aspectFill" />
+      <view class="flex1" style="margin-left:20rpx;">
+        <view class="row">
+          <text>{{item.name}}</text>
+          <text wx:if="{{item.role !== 'member'}}" class="tag">{{roleText[item.role]}}</text>
+          <text wx:if="{{item.openid === myOpenid}}" class="tag">我</text>
+        </view>
+        <view wx:if="{{item.inviterName}}" class="sub small">来自 {{item.inviterName}} 的邀请</view>
+      </view>
+    </view>
+    <view wx:if="{{c.me.isAdmin}}" class="hint">点成员可以修改名字、添加罚款{{c.me.isOwner ? '、设置管理员' : ''}}</view>
+  </view>
+</view>

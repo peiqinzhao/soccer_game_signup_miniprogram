@@ -1,0 +1,30 @@
+<view class="page">
+  <view class="card">
+    <view class="field">
+      <text class="field-label">名称</text>
+      <input class="field-value" value="{{name}}" data-key="name" bindinput="onInput" placeholder="如：MTV Garfield" />
+    </view>
+    <view class="field">
+      <text class="field-label">地址</text>
+      <input class="field-value" value="{{address}}" data-key="address" bindinput="onInput" placeholder="选填" />
+    </view>
+    <view class="field">
+      <text class="field-label">坐标</text>
+      <text class="field-value small">{{coordsText}}</text>
+    </view>
+    <view class="row mt">
+      <button class="btn btn-ghost btn-sm flex1" bindtap="chooseOnMap">地图选点</button>
+      <view class="gap"></view>
+      <button class="btn btn-ghost btn-sm flex1" bindtap="useCurrent">用当前位置</button>
+      <view class="gap"></view>
+      <button class="btn btn-ghost btn-sm flex1" bindtap="pasteCoords">粘贴坐标</button>
+    </view>
+    <view class="hint">海外地图选点可能有偏差。最准的方法是站在球场中间点“用当前位置”；也可以在 Google Maps 里长按球场中心，复制坐标后粘贴。</view>
+    <view class="field">
+      <text class="field-label">签到范围（米）</text>
+      <input class="field-value" type="number" value="{{radiusM}}" data-key="radiusM" bindinput="onInput" />
+    </view>
+  </view>
+  <button class="btn" bindtap="save">保存</button>
+  <button wx:if="{{venueId}}" class="btn btn-danger mt" bindtap="remove">删除场地</button>
+</view>

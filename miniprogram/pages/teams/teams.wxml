@@ -1,0 +1,30 @@
+<view class="page" wx:if="{{t}}">
+  <view wx:if="{{!t.formed}}" class="empty">
+    <view>还没有分队</view>
+    <view class="small mt">已签到 {{t.checkedIn}}/{{t.threshold}}，满 {{t.threshold}} 人自动随机分队</view>
+  </view>
+
+  <block wx:else>
+    <view wx:for="{{t.teams}}" wx:key="name" wx:for-item="team" class="card {{team.name === t.myTeam ? 'my-team' : ''}}">
+      <view class="row-between mb">
+        <text class="card-title" style="margin:0;">{{team.name}} 队</text>
+        <text class="sub small">{{team.members.length}} 人{{team.name === t.myTeam ? ' · 我的队' : ''}}</text>
+      </view>
+      <view wx:if="{{t.goalkeeper && team.members.length}}" class="row-between mb">
+        <text class="sub small">🧤 按编号顺序轮流守门</text>
+        <text wx:if="{{isAdmin && !settled && team.members.length > 1}}" class="link small" data-team="{{team.name}}" bindtap="onReshuffleGk">重排守门员</text>
+      </view>
+      <view wx:for="{{team.members}}" wx:key="openid" class="row" style="padding:10rpx 0;">
+        <text class="gk {{t.goalkeeper ? '' : 'plain'}}">{{item.gk}}</text>
+        <image class="avatar" src="{{item.avatar}}" mode="aspectFill" style="margin-left:16rpx;" />
+        <text class="flex1 {{item.openid === myOpenid ? 'bold' : ''}}" style="margin-left:16rpx;">{{item.name}}</text>
+        <text wx:if="{{item.late}}" class="tag">后到</text>
+      </view>
+      <view wx:if="{{!team.members.length}}" class="sub small">等待签到…</view>
+    </view>
+
+    <view class="hint" style="text-align:center;">页面每 15 秒自动刷新</view>
+    <button wx:if="{{isAdmin && !settled}}" class="btn btn-ghost mt" bindtap="onReshuffle">重新随机分队</button>
+    <button class="btn mt" open-type="share">转发分队结果</button>
+  </block>
+</view>

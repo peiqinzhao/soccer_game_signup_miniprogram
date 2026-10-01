@@ -1,0 +1,56 @@
+<view class="page">
+  <view class="card" style="text-align:center;">
+    <view class="sub small">当前余额</view>
+    <view style="font-size:72rpx; font-weight:700; margin:8rpx 0;">{{balanceText}}</view>
+    <view class="sub small">累计收入 {{incomeText}} · 累计支出 {{expenseText}}</view>
+  </view>
+
+  <view wx:if="{{isAdmin && !adding}}" class="mb">
+    <button class="btn btn-ghost" bindtap="startAdd">记一笔</button>
+  </view>
+
+  <view wx:if="{{adding}}" class="card">
+    <picker range="{{types}}" range-key="label" value="{{typeIndex}}" data-key="typeIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">类型</text><text class="field-value">{{types[typeIndex].label}} ›</text></view>
+    </picker>
+    <view class="field">
+      <text class="field-label">金额（$）</text>
+      <input class="field-value" type="digit" value="{{amount}}" data-key="amount" bindinput="onInput" placeholder="0" />
+    </view>
+    <view class="field">
+      <text class="field-label">说明</text>
+      <input class="field-value" value="{{note}}" data-key="note" bindinput="onInput" placeholder="如：团购 5 个足球" maxlength="100" />
+    </view>
+    <picker mode="date" value="{{date}}" data-key="date" bindchange="onPick">
+      <view class="field"><text class="field-label">日期</text><text class="field-value">{{date}} ›</text></view>
+    </picker>
+    <view class="field" bindtap="pickReceipt">
+      <text class="field-label">收据（选填）</text>
+      <text class="field-value link">{{receipt ? '已上传 ✓' : '上传图片'}}</text>
+    </view>
+    <view class="row mt">
+      <button class="btn btn-ghost flex1" bindtap="cancelAdd">取消</button>
+      <view class="gap"></view>
+      <button class="btn flex1" bindtap="submit">保存</button>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="row-between mb">
+      <text class="card-title" style="margin:0;">流水</text>
+      <text class="sub small" bindtap="toggleVoided">{{showVoided ? '隐藏已作废' : '显示已作废'}}</text>
+    </view>
+    <block wx:for="{{entries}}" wx:key="_id">
+      <view wx:if="{{!item.voided || showVoided}}" class="row" style="padding:16rpx 0; border-bottom:1rpx solid #eee; {{item.voided ? 'opacity:.4; text-decoration:line-through;' : ''}}"
+        data-index="{{index}}" bindlongpress="onEntryLongPress">
+        <view class="flex1">
+          <view class="ellipsis">{{item.note}}</view>
+          <view class="sub small">{{item.dateText}}<text wx:if="{{item.createdByName}}"> · {{item.createdByName}} 记</text><text wx:if="{{item.receipt}}" class="link" data-url="{{item.receipt}}" catchtap="preview"> · 收据</text></view>
+        </view>
+        <text class="bold {{item.signedCents >= 0 ? 'ok' : 'bad'}}">{{item.amountText}}</text>
+      </view>
+    </block>
+    <view wx:if="{{loaded && !entries.length}}" class="empty small">还没有记录{{isAdmin ? '，可以先录入“期初余额”' : ''}}</view>
+    <view wx:if="{{isAdmin && entries.length}}" class="hint">长按一条记录可以作废</view>
+  </view>
+</view>

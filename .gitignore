@@ -1,0 +1,6 @@
+node_modules/
+cloudfunctions/*/node_modules/
+project.private.config.json
+.DS_Store
+# 原 App 截图（含个人信息），不提交
+/IMG_*.PNG

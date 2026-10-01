@@ -1,0 +1,19 @@
+<view class="mask" wx:if="{{show}}" catchtouchmove="noop">
+  <view class="dialog">
+    <view class="dialog-title">完善资料</view>
+    <view class="sub small" style="text-align:center;">用你的微信头像和昵称，方便球友认出你</view>
+    <form bindsubmit="onSubmit">
+      <view class="pd-center">
+        <button class="pd-avatar" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+          <image wx:if="{{avatar}}" src="{{avatar}}" mode="aspectFill" class="pd-avatar-img" />
+          <view wx:else class="pd-avatar-ph">选择头像</view>
+        </button>
+        <view class="sub small">点头像可选「使用微信头像」</view>
+      </view>
+      <input class="pd-input" type="nickname" name="nickname" value="{{nickname}}" placeholder="昵称（点这里可选「使用微信昵称」）" maxlength="20" />
+      <view class="hint">用微信昵称，或者群里大家认识你的名字</view>
+      <button class="btn mt" form-type="submit" loading="{{saving}}" disabled="{{saving}}">保存</button>
+    </form>
+    <view class="sub small mt" style="text-align:center;" bindtap="onCancel">取消</view>
+  </view>
+</view>
