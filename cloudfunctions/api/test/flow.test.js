@@ -55,8 +55,14 @@ test('full game flow', async () => {
   )
   assert.match(await apiErr('a', 'signup', { gameId }), /已经报名/)
 
+  // 头像：云存储文件 ID 换成 https 临时链接，别人也能看
+  await api('a', 'updateProfile', { avatar: 'cloud://env/avatars/a.jpg' })
   let g = await api('owner', 'getGame', { gameId })
   assert.deepStrictEqual(g.registered.map((r) => r.name), ['A', 'B'])
+  assert.strictEqual(g.registered[0].avatar, 'https://tmp.example/env/avatars/a.jpg')
+  assert.strictEqual(g.registered[1].avatar, '')
+  const memberA = (await api('b', 'getClub', { clubId })).members.find((m) => m.openid === 'a')
+  assert.strictEqual(memberA.avatar, 'https://tmp.example/env/avatars/a.jpg')
   assert.strictEqual(g.registered[0].inviterName, '老王')
   assert.strictEqual(g.waitlist[0].inviterName, 'A')
   assert.strictEqual(g.registered[0].isNew, true)
@@ -155,10 +161,11 @@ test('full game flow', async () => {
   // 期初余额 + B 付款 → 账本
   await api('owner', 'addLedgerEntry', { clubId, type: 'opening', amountCents: 12000, note: '从 Google Sheet 迁移' })
   await api('owner', 'resolveFines', { clubId, fineIds: [fines[0]._id], op: 'paid', method: 'venmo' })
-  await api('owner', 'addLedgerEntry', { clubId, type: 'expense', amountCents: 4500, note: '买球' })
+  await api('owner', 'addLedgerEntry', { clubId, type: 'expense', amountCents: 4500, note: '买球', receipt: 'cloud://env/receipts/r1.jpg' })
   let ledger = await api('a', 'getLedger', { clubId })
   assert.strictEqual(ledger.balanceCents, 12000 + 500 - 4500)
   assert.ok(ledger.entries.some((e) => e.payerName === 'B'))
+  assert.ok(ledger.entries.some((e) => e.receipt === 'https://tmp.example/env/receipts/r1.jpg'))
   assert.match(await apiErr('a', 'addLedgerEntry', { clubId, type: 'income', amountCents: 1, note: 'x' }), /管理员/)
 
   // B 付清后可以报名

@@ -10,6 +10,7 @@ const {
   requireMember,
   requireAdmin,
   isAdminRole,
+  fileUrls,
 } = require('../lib/db')
 const { DEFAULT_SETTINGS } = require('../lib/rules')
 const { isValidTimeZone } = require('../lib/time')
@@ -98,7 +99,8 @@ async function getClub({ openid, clubId }) {
     listAll(db.collection('venues').where({ clubId }).orderBy('name', 'asc')),
   ])
   const users = await listAll(db.collection('users').where({ _id: _.in(members.map((m) => m.openid)) }))
-  const avatars = Object.fromEntries(users.map((u) => [u._id, u.avatar || '']))
+  const url = await fileUrls(users.map((u) => u.avatar))
+  const avatars = Object.fromEntries(users.map((u) => [u._id, url(u.avatar)]))
   const names = Object.fromEntries(members.map((m) => [m.openid, m.name]))
   const isAdmin = isAdminRole(me.role)
   let pendingFines = 0

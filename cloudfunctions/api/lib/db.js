@@ -49,6 +49,27 @@ async function requireAdmin(clubId, openid) {
   return m
 }
 
+// 云存储默认“仅创建者可读”，别人的头像/收据前端读不到。
+// 服务端有管理员权限，把 cloud:// 文件 ID 换成临时 https 链接（1 天有效）再返回。
+const URL_MAX_AGE = 24 * 3600
+
+async function fileUrls(fileIDs) {
+  const ids = [...new Set(fileIDs.filter((id) => typeof id === 'string' && id.startsWith('cloud://')))]
+  const map = {}
+  for (let i = 0; i < ids.length; i += 50) {
+    try {
+      const res = await cloud.getTempFileURL({
+        fileList: ids.slice(i, i + 50).map((fileID) => ({ fileID, maxAge: URL_MAX_AGE })),
+      })
+      for (const f of res.fileList || []) if (f.tempFileURL) map[f.fileID] = f.tempFileURL
+    } catch (e) {
+      console.error('getTempFileURL failed', e)
+    }
+  }
+  // 换不到的保持原样（自己的文件前端仍可直接显示）
+  return (id) => map[id] || id || ''
+}
+
 // 名字 + 头像，按 openid 映射
 async function profilesFor(clubId, openids) {
   const ids = [...new Set(openids.filter(Boolean))]
@@ -62,6 +83,8 @@ async function profilesFor(clubId, openids) {
   for (const m of members) {
     map[m.openid] = { ...(map[m.openid] || { avatar: '' }), name: m.name, joinedAt: m.joinedAt }
   }
+  const url = await fileUrls(Object.values(map).map((p) => p.avatar))
+  for (const p of Object.values(map)) p.avatar = url(p.avatar)
   return map
 }
 
@@ -79,5 +102,6 @@ module.exports = {
   requireMember,
   requireAdmin,
   isAdminRole,
+  fileUrls,
   profilesFor,
 }

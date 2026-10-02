@@ -112,6 +112,9 @@ const fakeSdk = {
   database: () => ({ collection: (n) => query(n), command }),
   getWXContext: () => ({ OPENID: currentOpenid }),
   openapi: { subscribeMessage: { send: async (m) => sent.push(m) } },
+  getTempFileURL: async ({ fileList }) => ({
+    fileList: fileList.map((f) => ({ fileID: f.fileID, tempFileURL: `https://tmp.example/${f.fileID.slice(8)}` })),
+  }),
 }
 
 const origLoad = Module._load

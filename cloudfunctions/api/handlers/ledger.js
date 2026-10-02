@@ -1,5 +1,5 @@
 // 足球基金账本：所有成员可看，管理员记账。罚款标记已付时自动入账（见 fine.js）。
-const { db, UserError, mustGet, listAll, requireMember, requireAdmin, isAdminRole, profilesFor } = require('../lib/db')
+const { db, UserError, mustGet, listAll, requireMember, requireAdmin, isAdminRole, profilesFor, fileUrls } = require('../lib/db')
 
 const TYPES = ['income', 'expense', 'opening']
 
@@ -13,6 +13,7 @@ async function getLedger({ openid, clubId }) {
   const live = entries.filter((e) => !e.voided)
   const profiles = await profilesFor(clubId, entries.flatMap((e) => [e.createdBy, e.payerOpenid]))
   const nameOf = (id) => (id && profiles[id] ? profiles[id].name : '')
+  const url = await fileUrls(entries.map((e) => e.receipt))
   return {
     isAdmin: isAdminRole(me.role),
     balanceCents: live.reduce((sum, e) => sum + signed(e), 0),
@@ -25,7 +26,7 @@ async function getLedger({ openid, clubId }) {
       signedCents: signed(e),
       note: e.note,
       date: e.date,
-      receipt: e.receipt || '',
+      receipt: url(e.receipt),
       fineId: e.fineId || '',
       payerName: nameOf(e.payerOpenid),
       createdByName: nameOf(e.createdBy),
