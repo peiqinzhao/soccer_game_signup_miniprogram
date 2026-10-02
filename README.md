@@ -28,6 +28,7 @@ docs/PRD.md             产品需求
    `users` `clubs` `members` `venues` `games` `registrations` `fines` `ledger` `reminders`
    每个集合的权限设为「自定义安全规则」：`{ "read": false, "write": false }`（所有读写都经过云函数）。
 5. 右键 `cloudfunctions/api` →「上传并部署：云端安装依赖」。定时触发器在 `config.json` 里，部署后右键「上传触发器」。
+   **务必在云开发控制台 → 云函数 → api → 触发器里确认状态是“已启用”**：迟到/缺席的自动判定和报名开放提醒都靠它，每 5 分钟运行一次；日志里应能看到 `{"settled": …, "reminded": …}`。
 6. 编译运行。第一次进入先在「比赛」页点「创建球队」，然后在球队页添加场地、发起比赛。
 
 建议给这些字段建索引（数据量小时可以不建）：
