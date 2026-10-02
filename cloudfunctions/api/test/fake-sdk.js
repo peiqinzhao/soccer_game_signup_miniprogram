@@ -43,17 +43,18 @@ function apply(doc, data) {
 const clone = (x) => JSON.parse(JSON.stringify(x))
 const coll = (name) => (store[name] = store[name] || new Map())
 
-function query(name, where = {}, order = [], lim = 100) {
+function query(name, where = {}, order = [], lim = 100, skipN = 0) {
   const api = {
-    where: (w) => query(name, w, order, lim),
-    orderBy: (f, dir) => query(name, where, [...order, [f, dir]], lim),
-    limit: (n) => query(name, where, order, n),
+    where: (w) => query(name, w, order, lim, skipN),
+    orderBy: (f, dir) => query(name, where, [...order, [f, dir]], lim, skipN),
+    limit: (n) => query(name, where, order, n, skipN),
+    skip: (n) => query(name, where, order, lim, n),
     async get() {
       let docs = [...coll(name).values()].filter((d) => match(d, where))
       for (const [f, dir] of [...order].reverse()) {
         docs.sort((a, b) => (a[f] < b[f] ? -1 : a[f] > b[f] ? 1 : 0) * (dir === 'desc' ? -1 : 1))
       }
-      return { data: clone(docs.slice(0, lim)) }
+      return { data: clone(docs.slice(skipN, skipN + lim)) }
     },
     async count() {
       return { total: [...coll(name).values()].filter((d) => match(d, where)).length }
