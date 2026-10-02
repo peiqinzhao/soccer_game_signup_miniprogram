@@ -150,3 +150,29 @@ test('teams disabled: no team data', async () => {
   assert.strictEqual(g.teams, null)
   assert.deepStrictEqual([g.game.teamSize, g.game.teamCount, g.game.autoTeams], [8, 3, false])
 })
+
+test('heals a drifted registeredCount and promotes the waitlist; marks waitlist quits', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  fake.setNow(startAt - 2 * 24 * 60 * MIN)
+  for (const id of ['o', 'a', 'b', 'c']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, capacity: 2 } })
+  await api('o', 'signup', { gameId })
+  await api('a', 'signup', { gameId, inviter: 'o' })
+  await api('b', 'signup', { gameId, inviter: 'o' }) // 替补 1
+  await api('c', 'signup', { gameId, inviter: 'o' }) // 替补 2
+  await api('c', 'cancelSignup', { gameId }) // 退出替补
+
+  // 模拟 bug：有人取消了，但计数没减（以前版本或并发导致）
+  fake.store.registrations.get(`${gameId}_a`).status = 'cancelled'
+  let g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => r.name).sort(), ['B', 'O']) // B 被递补
+  assert.strictEqual(g.game.registeredCount, 2)
+  const quit = g.cancelled.find((r) => r.name === 'C')
+  assert.strictEqual(quit.cancelledFrom, 'waitlist')
+})

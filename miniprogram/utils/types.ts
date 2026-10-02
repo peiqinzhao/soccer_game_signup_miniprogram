@@ -71,6 +71,7 @@ export interface RegView {
   waitlistAt: number
   cancelledAt: number
   cancelPhase: '' | 'free' | 'warn' | 'penalty'
+  cancelledFrom?: '' | 'registered' | 'waitlist'
   checkinAt: number
   checkinMethod: string
   attendance: '' | 'on_time' | 'late' | 'no_show'

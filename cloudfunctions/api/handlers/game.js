@@ -257,9 +257,21 @@ async function listGames({ openid, history }) {
   }
 }
 
+// 名额计数器和实际报名人数对不上时纠正，并在有空位时递补
+async function healRegisteredCount(game) {
+  if (game.status !== 'active' || Date.now() >= game.cutoffAt) return false
+  const actual = (await db.collection('registrations').where({ gameId: game._id, status: 'registered' }).count()).total
+  if (actual === game.registeredCount) return false
+  console.warn('registeredCount drift', game._id, game.registeredCount, '->', actual)
+  await db.collection('games').doc(game._id).update({ data: { registeredCount: actual } })
+  if (actual < game.capacity) await promoteWaitlist(game._id)
+  return true
+}
+
 async function getGame({ openid, gameId }) {
   let game = await mustGet('games', gameId, '比赛')
   if (await maybeSettle(game)) game = await mustGet('games', gameId, '比赛')
+  if (await healRegisteredCount(game)) game = await mustGet('games', gameId, '比赛')
   const club = await mustGet('clubs', game.clubId, '球队')
   const member = await getMember(game.clubId, openid)
   const isAdmin = !!member && isAdminRole(member.role)
@@ -284,6 +296,7 @@ async function getGame({ openid, gameId }) {
       waitlistAt: r.waitlistAt || 0,
       cancelledAt: r.cancelledAt || 0,
       cancelPhase: r.cancelPhase || '',
+      cancelledFrom: r.cancelledFrom || '',
       checkinAt: r.checkinAt || 0,
       checkinMethod: r.checkinMethod || '',
       attendance: r.attendance || '',
@@ -402,7 +415,7 @@ async function cancelSignup({ openid, gameId }) {
     await db
       .collection('registrations')
       .doc(reg._id)
-      .update({ data: { status: 'cancelled', cancelledAt: now, cancelPhase: 'free' } })
+      .update({ data: { status: 'cancelled', cancelledAt: now, cancelPhase: 'free', cancelledFrom: 'waitlist' } })
     return { phase: 'free', fined: false }
   }
 
@@ -410,7 +423,7 @@ async function cancelSignup({ openid, gameId }) {
   await db
     .collection('registrations')
     .doc(reg._id)
-    .update({ data: { status: 'cancelled', cancelledAt: now, cancelPhase: phase } })
+    .update({ data: { status: 'cancelled', cancelledAt: now, cancelPhase: phase, cancelledFrom: 'registered' } })
   await db.collection('games').doc(gameId).update({ data: { registeredCount: _.inc(-1) } })
 
   let fined = false

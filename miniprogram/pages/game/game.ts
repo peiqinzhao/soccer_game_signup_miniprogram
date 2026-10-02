@@ -79,7 +79,9 @@ function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
       badgeClass = 'tag-ok'
     }
   } else if (r.status === 'cancelled') {
-    if (r.cancelPhase === 'penalty') {
+    if (r.cancelledFrom === 'waitlist') {
+      badge = '退出替补'
+    } else if (r.cancelPhase === 'penalty') {
       badge = '临时取消'
       badgeClass = 'tag-bad'
     } else if (r.cancelPhase === 'warn') {

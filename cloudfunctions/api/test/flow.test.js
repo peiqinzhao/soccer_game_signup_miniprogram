@@ -81,6 +81,12 @@ test('full game flow', async () => {
   // A 再报名 → 替补
   assert.deepStrictEqual(await api('a', 'signup', { gameId }), { status: 'waitlist' })
 
+  // 计数器偏差自愈：人为把计数改大，打开比赛页后纠正（此时 2/2 满员，不应递补）
+  fake.store.games.get(gameId).registeredCount = 5
+  g = await api('owner', 'getGame', { gameId })
+  assert.strictEqual(g.game.registeredCount, 2)
+  assert.deepStrictEqual(g.waitlist.map((r) => r.name), ['A'])
+
   // 前一天 21:00 之后、开赛 1 小时前：warn，不罚款
   fake.setNow(T.zonedToUtcMs('2026-10-03', '21:30', tz))
   assert.deepStrictEqual(await api('c', 'cancelSignup', { gameId }), { phase: 'warn', fined: false })
