@@ -55,10 +55,11 @@ exports.main = async (event) => {
   const { OPENID } = cloud.getWXContext()
 
   // 定时器每 5 分钟一次：结算 + 报名开放提醒。
-  // 定时触发的 event 一般是 { Type: 'Timer', TriggerName, Time }；没有用户身份、也不带 action 的调用同样按定时器处理
-  if (event.Type === 'Timer' || event.TriggerName || (!OPENID && !event.action)) {
+  // 定时触发的 event 一般是 { Type: 'Timer', TriggerName, Time }；没有用户身份、也不带 action 的调用同样按定时器处理。
+  // 也可以在控制台「云端测试」传 { "action": "runTimer" } 手动执行（重复执行不会重复发送）。
+  if (event.Type === 'Timer' || event.TriggerName || (!OPENID && !event.action) || event.action === 'runTimer') {
     const result = { ...(await settleDue()), ...(await remind.remindDue()) }
-    console.log('timer', JSON.stringify({ trigger: event.TriggerName || event.Type || '', ...result }))
+    console.log('timer', JSON.stringify({ trigger: event.TriggerName || event.Type || event.action || '', ...result }))
     return result
   }
 
