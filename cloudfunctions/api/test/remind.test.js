@@ -88,3 +88,47 @@ test('admins can sign up before opening; open reminders fire when signup opens a
   assert.strictEqual(fake.sent.filter((m) => m.templateId === 'open').length, 1)
   config.OPEN_TEMPLATE_ID = saved
 })
+
+test('open reminders retry transient errors, give up on permanent ones, skip stale', async () => {
+  fake.reset()
+  const saved = config.OPEN_TEMPLATE_ID
+  config.OPEN_TEMPLATE_ID = 'open'
+  const opens = T.zonedToUtcMs('2026-10-01', '20:00', tz)
+  fake.setNow(opens - 24 * 60 * MIN)
+  for (const id of ['o', 'x', 'y']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const form = { date: '2026-10-04', time: '10:00', timezone: tz, venueId, signupOpens: { date: '2026-10-01', time: '20:00' } }
+  const { gameId } = await api('o', 'saveGame', { clubId, form })
+  await api('x', 'setOpenReminder', { gameId })
+  await api('y', 'setOpenReminder', { gameId })
+
+  // x 临时错误、y 永久错误
+  const cloud = require('wx-server-sdk')
+  const realSend = cloud.openapi.subscribeMessage.send
+  cloud.openapi.subscribeMessage.send = async (m) => {
+    throw { errCode: m.touser === 'x' ? -501001 : 43101, errMsg: 'boom' }
+  }
+  fake.setNow(opens + MIN)
+  let r = await tick()
+  assert.deepStrictEqual([r.reminded, r.remindFailed], [0, 2])
+  cloud.openapi.subscribeMessage.send = realSend
+  fake.setNow(opens + 6 * MIN)
+  r = await tick()
+  assert.deepStrictEqual([r.reminded, r.remindFailed], [1, 0]) // 只重试 x
+  assert.strictEqual(fake.sent.at(-1).touser, 'x')
+  r = await tick()
+  assert.strictEqual(r.reminded, 0)
+
+  // 过期：开放 30 分钟后才被扫到的不发
+  const { gameId: g2 } = await api('o', 'saveGame', { clubId, form: { ...form, date: '2026-10-11', signupOpens: { date: '2026-10-08', time: '20:00' } } })
+  fake.setNow(opens + 10 * MIN)
+  await api('x', 'setOpenReminder', { gameId: g2 })
+  fake.setNow(T.zonedToUtcMs('2026-10-08', '21:00', tz))
+  r = await tick()
+  assert.strictEqual(r.reminded, 0)
+  config.OPEN_TEMPLATE_ID = saved
+})

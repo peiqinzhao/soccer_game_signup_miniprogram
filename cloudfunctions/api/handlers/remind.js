@@ -43,15 +43,26 @@ async function syncReminders(game) {
   await pending.update({ data: { remindAt: game.signupOpensAt - LEAD_MS } })
 }
 
+const STALE_MS = 30 * 60 * 1000 // 开放超过 30 分钟还没发出的提醒不再发
+const MAX_ATTEMPTS = 3
+// 这些错误重试也没用：用户没授权/授权已用完、字段不合法、模板不对、用户拒收
+const PERMANENT = new Set([43101, 47003, 40037, 43107])
+
 async function remindDue() {
-  const due = await listAll(db.collection('reminders').where({ sent: false, remindAt: _.lte(Date.now()) }), 200)
+  const now = Date.now()
+  const due = await listAll(db.collection('reminders').where({ sent: false, remindAt: _.lte(now) }), 200)
   let sent = 0
+  let failed = 0
   for (const r of due) {
-    // 先标记，避免下一分钟重复发
+    // 先标记，避免下一次定时器重复处理
     const claim = await db.collection('reminders').where({ _id: r._id, sent: false }).update({ data: { sent: true } })
     if (claim.stats.updated !== 1) continue
     const game = await getDoc('games', r.gameId)
     if (!game || game.status !== 'active' || !game.signupOpensAt) continue
+    if (now - r.remindAt > STALE_MS) {
+      await db.collection('reminders').doc(r._id).update({ data: { result: 'stale' } })
+      continue
+    }
     if (!config.OPEN_TEMPLATE_ID) {
       console.warn('OPEN_TEMPLATE_ID 未配置，跳过开放提醒', r._id)
       continue
@@ -68,13 +79,21 @@ async function remindDue() {
           venueName: game.venue.name,
         }),
       })
+      await db.collection('reminders').doc(r._id).update({ data: { result: 'delivered', deliveredAt: Date.now() } })
       sent++
     } catch (e) {
-      // 常见错误码：43101 用户未授权/授权已用完；47003 字段内容不合法；40037 模板 ID 不对
-      console.error('open reminder failed', r.openid, e && (e.errCode || e.errMsg || e.message))
+      failed++
+      const code = e && e.errCode
+      const attempts = (r.attempts || 0) + 1
+      const retry = !PERMANENT.has(code) && attempts < MAX_ATTEMPTS
+      console.error('open reminder failed', r.openid, code, e && (e.errMsg || e.message), retry ? 'will retry' : 'giving up')
+      await db
+        .collection('reminders')
+        .doc(r._id)
+        .update({ data: { sent: !retry, attempts, result: `error ${code}` } })
     }
   }
-  return { reminded: sent }
+  return { reminded: sent, remindFailed: failed }
 }
 
 module.exports = { LEAD_MS, setOpenReminder, hasOpenReminder, syncReminders, remindDue }
