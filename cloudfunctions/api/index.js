@@ -52,11 +52,20 @@ const ACTIONS = {
 }
 
 exports.main = async (event) => {
-  // 定时器每 5 分钟一次：结算 + 报名开放提醒
-  if (event.Type === 'Timer') return { ...(await settleDue()), ...(await remind.remindDue()) }
-
   const { OPENID } = cloud.getWXContext()
-  if (!OPENID) return { ok: false, error: '未登录' }
+
+  // 定时器每 5 分钟一次：结算 + 报名开放提醒。
+  // 定时触发的 event 一般是 { Type: 'Timer', TriggerName, Time }；没有用户身份、也不带 action 的调用同样按定时器处理
+  if (event.Type === 'Timer' || event.TriggerName || (!OPENID && !event.action)) {
+    const result = { ...(await settleDue()), ...(await remind.remindDue()) }
+    console.log('timer', JSON.stringify({ trigger: event.TriggerName || event.Type || '', ...result }))
+    return result
+  }
+
+  if (!OPENID) {
+    console.warn('no OPENID', JSON.stringify(event).slice(0, 200))
+    return { ok: false, error: '未登录' }
+  }
   const { action, userInfo, ...params } = event
   const fn = ACTIONS[action]
   if (!fn) return { ok: false, error: `未知操作 ${action}` }

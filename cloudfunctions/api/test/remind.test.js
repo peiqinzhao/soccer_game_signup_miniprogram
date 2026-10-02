@@ -21,7 +21,10 @@ async function apiErr(openid, action, params = {}) {
   assert.strictEqual(r.ok, false, `${action} should fail`)
   return r.error
 }
-const tick = () => main({ Type: 'Timer', TriggerName: 'settle' })
+const tick = () => {
+  fake.as('') // 定时器调用没有用户身份
+  return main({ Type: 'Timer', TriggerName: 'settle' })
+}
 
 test('admins can sign up before opening; open reminders fire when signup opens and follow changes', async () => {
   fake.reset()
