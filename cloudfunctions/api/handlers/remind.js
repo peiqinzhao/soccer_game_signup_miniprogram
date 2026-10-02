@@ -51,7 +51,11 @@ async function remindDue() {
     const claim = await db.collection('reminders').where({ _id: r._id, sent: false }).update({ data: { sent: true } })
     if (claim.stats.updated !== 1) continue
     const game = await getDoc('games', r.gameId)
-    if (!game || game.status !== 'active' || !game.signupOpensAt || !config.OPEN_TEMPLATE_ID) continue
+    if (!game || game.status !== 'active' || !game.signupOpensAt) continue
+    if (!config.OPEN_TEMPLATE_ID) {
+      console.warn('OPEN_TEMPLATE_ID 未配置，跳过开放提醒', r._id)
+      continue
+    }
     try {
       await cloud.openapi.subscribeMessage.send({
         touser: r.openid,
@@ -66,7 +70,8 @@ async function remindDue() {
       })
       sent++
     } catch (e) {
-      console.error('open reminder failed', r.openid, e)
+      // 常见错误码：43101 用户未授权/授权已用完；47003 字段内容不合法；40037 模板 ID 不对
+      console.error('open reminder failed', r.openid, e && (e.errCode || e.errMsg || e.message))
     }
   }
   return { reminded: sent }
