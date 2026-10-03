@@ -135,7 +135,8 @@ Page({
       teamCount: f ? f.teamCount : 3,
       autoTeams: !!(f && f.autoTeams),
       goalkeeper: !!(f && f.goalkeeper),
-      tagsText: f && f.tags ? f.tags.join('，') : '',
+      // 新比赛：优先球队默认标签，没设就沿用复制来的上一场；编辑已有比赛用它自己的
+      tagsText: (!this.data.gameId && s.defaultTags && s.defaultTags.length ? s.defaultTags : (f && f.tags) || []).join('，'),
       lateGraceMin: String(f ? f.lateGraceMin : s.lateGraceMin),
       fineDollars: String((f ? f.fineCents : s.fineCents) / 100),
     })

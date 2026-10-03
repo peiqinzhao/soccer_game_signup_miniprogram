@@ -41,6 +41,13 @@ function cleanSettings(input = {}) {
     if (!/^\d{2}:\d{2}$/.test(input.cancelDeadlineTime)) throw new UserError('截止时间格式应为 HH:mm')
     s.cancelDeadlineTime = input.cancelDeadlineTime
   }
+  if (input.defaultTags !== undefined) {
+    try {
+      s.defaultTags = cleanTags(input.defaultTags)
+    } catch (e) {
+      throw new UserError(e.message)
+    }
+  }
   return s
 }
 

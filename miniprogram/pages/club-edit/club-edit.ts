@@ -23,6 +23,7 @@ Page({
     venmo: '',
     fineDollars: '5',
     cancelDeadlineTime: '21:00',
+    defaultTagsText: '',
     tzLabels: TIMEZONES.map((t) => t.label),
     tzIndex: 0,
     numFields: NUM_FIELDS,
@@ -53,6 +54,7 @@ Page({
       venmo: c.club.venmo,
       fineDollars: String(s.fineCents / 100),
       cancelDeadlineTime: s.cancelDeadlineTime,
+      defaultTagsText: (s.defaultTags || []).join('，'),
       tzLabels: TIMEZONES.map((t) => t.label),
       tzIndex,
       nums,
@@ -103,6 +105,7 @@ Page({
       timezone: TIMEZONES[d.tzIndex].id,
       fineCents: Math.round(Number(d.fineDollars) * 100),
       cancelDeadlineTime: d.cancelDeadlineTime,
+      defaultTags: d.defaultTagsText,
     }
     for (const { key } of NUM_FIELDS) settings[key] = Number(d.nums[key])
     const ok = await run('updateClub', { clubId: d.clubId, name: d.name, venmo: d.venmo, settings }, '保存中')

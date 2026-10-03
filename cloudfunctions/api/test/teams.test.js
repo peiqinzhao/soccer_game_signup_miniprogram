@@ -188,6 +188,10 @@ test('game tags: admin defines, players self-toggle, admin can edit others', asy
   const { clubId } = await api('o', 'createClub', { name: 'T' })
   const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
   const form = { date: '2026-10-04', time: '10:00', timezone: tz, venueId }
+  // 球队默认标签
+  await api('o', 'updateClub', { clubId, settings: { defaultTags: '已付款，带球' } })
+  assert.deepStrictEqual((await api('o', 'gameForm', { clubId })).settings.defaultTags, ['已付款', '带球'])
+  assert.match(await apiErr('o', 'updateClub', { clubId, settings: { defaultTags: 'a,b,c,d' } }), /最多 3 个/)
   assert.match(await apiErr('o', 'saveGame', { clubId, form: { ...form, tags: '已付款,带球,带背心,能守门' } }), /最多 3 个/)
   assert.match(await apiErr('o', 'saveGame', { clubId, form: { ...form, tags: ['这个标签太长了吧'] } }), /太长/)
   const { gameId } = await api('o', 'saveGame', { clubId, form: { ...form, tags: '已付款，带球 已付款' } })

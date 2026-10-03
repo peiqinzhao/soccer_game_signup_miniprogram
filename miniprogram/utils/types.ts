@@ -21,6 +21,7 @@ export interface ClubSettings {
   penaltyWindowMin: number
   cancelDeadlineDaysBefore: number
   cancelDeadlineTime: string
+  defaultTags?: string[]
 }
 
 export interface Game {

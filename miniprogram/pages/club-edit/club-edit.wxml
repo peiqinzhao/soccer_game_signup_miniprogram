@@ -28,6 +28,11 @@
     <picker mode="time" value="{{cancelDeadlineTime}}" data-key="cancelDeadlineTime" bindchange="onPick">
       <view class="field"><text class="field-label">缺席不转发罚款截止时刻</text><text class="field-value">{{cancelDeadlineTime}} ›</text></view>
     </picker>
+    <view class="field">
+      <text class="field-label">默认标签</text>
+      <input class="field-value" value="{{defaultTagsText}}" data-key="defaultTagsText" bindinput="onInput" placeholder="如：已付款" maxlength="30" />
+    </view>
+    <view class="hint">新发起比赛时自动带上，最多 3 个，用逗号分隔</view>
   </view>
 
   <button class="btn" bindtap="save">{{clubId ? '保存' : '创建球队'}}</button>

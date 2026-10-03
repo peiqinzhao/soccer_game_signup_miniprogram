@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   penaltyWindowMin: 60, // 开赛前多少分钟内取消视作缺席
   cancelDeadlineDaysBefore: 1,
   cancelDeadlineTime: '21:00',
+  defaultTags: [], // 新发起比赛时默认带上的标签
 }
 
 // 比赛自选标签：管理员定义（如“已付款”），队员自己打上或取消
