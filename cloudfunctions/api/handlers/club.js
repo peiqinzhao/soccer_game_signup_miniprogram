@@ -12,7 +12,7 @@ const {
   isAdminRole,
   fileUrls,
 } = require('../lib/db')
-const { DEFAULT_SETTINGS } = require('../lib/rules')
+const { DEFAULT_SETTINGS, cleanTags } = require('../lib/rules')
 const { isValidTimeZone } = require('../lib/time')
 
 function cleanSettings(input = {}) {
@@ -225,6 +225,13 @@ function cleanTemplate(t) {
     teamCount: int(t.teamCount ?? 3, 2, 6, '队数'),
     autoTeams: !!t.autoTeams,
     goalkeeper: !!t.autoTeams && !!t.goalkeeper,
+    tags: (() => {
+      try {
+        return cleanTags(t.tags)
+      } catch (e) {
+        throw new UserError(e.message)
+      }
+    })(),
     lateGraceMin: int(t.lateGraceMin, 0, 120, '迟到宽限'),
     fineCents: int(t.fineCents, 0, 100000, '罚款金额'),
     signupOpens: t.signupOpens

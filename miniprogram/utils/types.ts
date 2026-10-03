@@ -48,6 +48,7 @@ export interface Game {
   teamCount: number
   autoTeams: boolean
   goalkeeper: boolean
+  tags?: string[]
   teamsFormedAt?: number
   cancelReason?: string
   cancelledAt?: number
@@ -72,6 +73,7 @@ export interface RegView {
   cancelledAt: number
   cancelPhase: '' | 'free' | 'warn' | 'penalty'
   cancelledFrom?: '' | 'registered' | 'waitlist'
+  tags?: string[]
   checkinAt: number
   checkinMethod: string
   attendance: '' | 'on_time' | 'late' | 'no_show'
@@ -137,6 +139,7 @@ export interface GameForm {
   teamCount: number
   autoTeams: boolean
   goalkeeper: boolean
+  tags: string[]
   lateGraceMin: number
   fineCents: number
   signupOpens: { date: string; time: string } | null
@@ -207,6 +210,7 @@ export interface GameTemplate {
   teamCount?: number
   autoTeams?: boolean
   goalkeeper?: boolean
+  tags?: string[]
   lateGraceMin: number
   fineCents: number
   signupOpens: { daysBefore: number; time: string } | null

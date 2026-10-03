@@ -62,6 +62,11 @@
       <switch checked="{{goalkeeper}}" data-key="goalkeeper" bindchange="onSwitch" color="#111" />
     </view>
     <view class="field">
+      <text class="field-label">可选标签</text>
+      <input class="field-value" value="{{tagsText}}" data-key="tagsText" bindinput="onInput" placeholder="如：已付款" maxlength="30" />
+    </view>
+    <view class="hint">队员报名后可以自己打上这些标签，大家都能看到（比如训练完自己标“已付款”）。最多 3 个，用逗号分隔，每个最多 6 个字。</view>
+    <view class="field">
       <text class="field-label">标题（选填）</text>
       <input class="field-value" value="{{title}}" data-key="title" bindinput="onInput" placeholder="{{dt.week(date)}} · {{venueIndex >= 0 ? venues[venueIndex].name : '场地'}}" maxlength="30" />
     </view>

@@ -17,6 +17,22 @@ const DEFAULT_SETTINGS = {
   cancelDeadlineTime: '21:00',
 }
 
+// 比赛自选标签：管理员定义（如“已付款”），队员自己打上或取消
+const MAX_TAGS = 3
+const MAX_TAG_LEN = 6
+function cleanTags(input) {
+  const list = Array.isArray(input) ? input : String(input || '').split(/[,，、\s]+/)
+  const tags = []
+  for (const raw of list) {
+    const t = String(raw || '').trim()
+    if (!t || tags.includes(t)) continue
+    if (t.length > MAX_TAG_LEN) throw new Error(`标签“${t}”太长，最多 ${MAX_TAG_LEN} 个字`)
+    tags.push(t)
+  }
+  if (tags.length > MAX_TAGS) throw new Error(`最多 ${MAX_TAGS} 个标签`)
+  return tags
+}
+
 const FINE_REASONS = {
   late: '迟到',
   no_show: '未到',
@@ -85,6 +101,7 @@ module.exports = {
   MIN,
   DEFAULT_SETTINGS,
   FINE_REASONS,
+  cleanTags,
   cancelPhase,
   checkinOpensAt,
   canCheckinAt,

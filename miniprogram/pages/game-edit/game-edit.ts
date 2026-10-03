@@ -21,6 +21,13 @@ function nextWeekday(weekday: number): string {
   return fmtDate(d.getTime())
 }
 
+function splitTags(text: string): string[] {
+  return text
+    .split(/[,，、\s]+/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+}
+
 // 定时开放报名的默认值：比赛前 3 天 20:00（周日的比赛 → 周四 20:00）
 const SIGNUP_OPEN_DAYS_BEFORE = 3
 const SIGNUP_OPEN_TIME = '20:00'
@@ -71,6 +78,7 @@ Page({
     autoTeams: false,
     goalkeeper: false,
     teamsRule: '',
+    tagsText: '', // 可选标签，逗号或空格分隔
     lateGraceMin: '10',
     fineDollars: '5',
     scheduled: false,
@@ -127,6 +135,7 @@ Page({
       teamCount: f ? f.teamCount : 3,
       autoTeams: !!(f && f.autoTeams),
       goalkeeper: !!(f && f.goalkeeper),
+      tagsText: f && f.tags ? f.tags.join('，') : '',
       lateGraceMin: String(f ? f.lateGraceMin : s.lateGraceMin),
       fineDollars: String((f ? f.fineCents : s.fineCents) / 100),
     })
@@ -270,6 +279,7 @@ Page({
       teamCount: t.teamCount || 3,
       autoTeams: !!t.autoTeams,
       goalkeeper: !!t.goalkeeper,
+      tagsText: (t.tags || []).join('，'),
       lateGraceMin: String(t.lateGraceMin),
       fineDollars: String(t.fineCents / 100),
       scheduled: !!t.signupOpens,
@@ -331,6 +341,7 @@ Page({
       teamCount: d.teamCount,
       autoTeams: d.autoTeams,
       goalkeeper: d.autoTeams && d.goalkeeper,
+      tags: splitTags(d.tagsText),
       lateGraceMin: Number(d.lateGraceMin),
       fineCents: Math.round(Number(d.fineDollars) * 100),
       signupOpens: d.scheduled ? { daysBefore, time: d.signupTime } : null,
@@ -363,6 +374,7 @@ Page({
       teamCount: d.teamCount,
       autoTeams: d.autoTeams,
       goalkeeper: d.autoTeams && d.goalkeeper,
+      tags: splitTags(d.tagsText),
       lateGraceMin: Number(d.lateGraceMin),
       fineCents: Math.round(Number(d.fineDollars) * 100),
       signupOpens: d.scheduled ? { date: d.signupDate, time: d.signupTime } : null,

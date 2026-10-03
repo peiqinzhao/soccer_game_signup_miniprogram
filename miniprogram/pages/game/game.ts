@@ -128,6 +128,8 @@ Page({
     myCheckinText: '',
     formatStr: '',
     teamSizesText: '',
+    tagStats: '', // 如“已付款 18/24”
+    myTags: [] as { tag: string; on: boolean }[],
     // 取消后的转发提示
     shareDialog: { show: false, phase: '' as '' | Phase, fined: false },
     // 管理员取消/改时间后的“转发到群”提示
@@ -197,6 +199,11 @@ Page({
       fineText: money(g.fineCents),
       formatStr: formatText(g.teamSize || 8, g.teamCount || 3),
       teamSizesText: d.teams ? d.teams.teams.map((t) => `${t.name} 队 ${t.members.length} 人`).join(' · ') : '',
+      tagStats: (g.tags || [])
+        .map((tag) => `${tag} ${d.registered.filter((r) => (r.tags || []).includes(tag)).length}/${d.registered.length}`)
+        .join(' · '),
+      myTags:
+        reg && reg.status === 'registered' ? (g.tags || []).map((tag) => ({ tag, on: (reg.tags || []).includes(tag) })) : [],
       myCheckinText: reg && reg.checkinAt ? fmtTime(reg.checkinAt) : '',
     })
     this.updateList()
@@ -440,6 +447,30 @@ Page({
     }
   },
 
+  // ---------- 标签 ----------
+
+  async onToggleMyTag(e: WechatMiniprogram.TouchEvent) {
+    const tag: string = e.currentTarget.dataset.tag
+    if (await run('toggleTag', { gameId: this.data.id, tag }, '')) this.load()
+  },
+
+  // ---------- 复制名单 ----------
+
+  onCopyRoster() {
+    const d = this.data.d
+    if (!d) return
+    const g = d.game
+    const withTags = (r: RegView) => r.name + ((r.tags || []).length ? ` [${(r.tags || []).join('][')}]` : '')
+    const lines = [g.title, `${g.local.start}–${g.local.end}`, `📍 ${g.venue.name}`, `已报名 ${d.registered.length}/${g.capacity}`]
+    if (this.data.tagStats) lines.push(this.data.tagStats)
+    this.data.registered.forEach((r, i) => lines.push(`${i + 1}. ${withTags(r)}`))
+    if (this.data.waitlist.length) {
+      lines.push('', '替补：')
+      this.data.waitlist.forEach((r, i) => lines.push(`${i + 1}. ${r.name}`))
+    }
+    wx.setClipboardData({ data: lines.join('\n') })
+  },
+
   // ---------- 分队 ----------
 
   openTeams() {
@@ -562,6 +593,22 @@ Page({
       } else {
         items.push({ label: '代签到（记为准时）', run: setAtt('on_time') })
       }
+    }
+    const tags = d.game.tags || []
+    if (status === 'registered' && tags.length && row) {
+      items.push({
+        label: '标签…',
+        run: async () => {
+          const mine = row.tags || []
+          try {
+            const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
+            const tag = tags[r.tapIndex]
+            return run('toggleTag', { gameId: this.data.id, tag, target: openid, on: !mine.includes(tag) }, '保存中')
+          } catch (err) {
+            return null
+          }
+        },
+      })
     }
     items.push({
       label: '添加其他罚款（如穿钉鞋）',

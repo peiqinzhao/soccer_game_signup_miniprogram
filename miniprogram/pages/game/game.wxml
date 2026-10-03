@@ -44,6 +44,17 @@
     <view class="small mt">付清前无法报名。请{{d.club.venmo ? 'Venmo ' + d.club.venmo + ' 或' : ''}}现金支付给管理员，管理员确认后即可报名。</view>
   </view>
 
+  <!-- 我的标签 -->
+  <view wx:if="{{myTags.length}}" class="card">
+    <view class="row-between">
+      <text class="bold">我的标签</text>
+      <text class="sub small">点一下打上，再点取消</text>
+    </view>
+    <view class="row mt" style="flex-wrap:wrap;">
+      <text wx:for="{{myTags}}" wx:key="tag" class="chip {{item.on ? 'on' : ''}}" style="margin:0 16rpx 8rpx 0;" data-tag="{{item.tag}}" bindtap="onToggleMyTag">{{item.on ? '✓ ' : ''}}{{item.tag}}</text>
+    </view>
+  </view>
+
   <!-- 签到 -->
   <view wx:if="{{myStatus === 'registered' && d.game.status === 'active'}}" class="card">
     <view wx:if="{{d.me.reg.checkinAt}}" class="row-between">
@@ -94,7 +105,7 @@
       <view style="font-size:96rpx; font-weight:700; letter-spacing:16rpx;">{{code.value}}</view>
       <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
     </view>
-    <view class="hint">点名单里的人可以：代签到、修正出勤、豁免或确认罚款、修改名字；「缺席」里截止后才取消的人可以罚“缺席未转发”</view>
+    <view class="hint">点名单里的人可以：代签到、修正出勤、改标签、豁免或确认罚款、修改名字；「缺席」里截止后才取消的人可以罚“缺席未转发”</view>
   </view>
 
   <!-- 名单 -->
@@ -107,6 +118,10 @@
       </view>
       <text class="small">剩余 {{d.game.capacity - d.game.registeredCount > 0 ? d.game.capacity - d.game.registeredCount : 0}}/{{d.game.capacity}}</text>
     </view>
+    <view class="row-between mb">
+      <text class="sub small">{{tagStats}}</text>
+      <text class="link small" bindtap="onCopyRoster">复制名单</text>
+    </view>
     <block wx:for="{{list}}" wx:key="openid">
       <view class="row" style="padding: 14rpx 0;" bindtap="onPersonTap" data-openid="{{item.openid}}" data-name="{{item.name}}" data-status="{{item.status}}" data-phase="{{item.cancelPhase}}">
         <text class="sub small" style="width:44rpx;">{{index + 1}}</text>
@@ -117,6 +132,7 @@
             <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
             <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
             <text wx:if="{{item.fineText}}" class="tag {{item.fineClass}}">{{item.fineText}}</text>
+            <text wx:for="{{item.tags}}" wx:for-item="t" wx:key="*this" class="tag tag-ok">{{t}}</text>
           </view>
           <view class="sub small">
             {{item.timeText}}<text wx:if="{{item.inviterName}}"> · 来自 {{item.inviterName}} 的邀请</text>

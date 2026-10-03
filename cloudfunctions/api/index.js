@@ -34,6 +34,7 @@ const ACTIONS = {
   checkin: game.checkin,
   getCheckinCode: game.getCheckinCode,
   setAttendance: game.setAttendance,
+  toggleTag: game.toggleTag,
   fineNoForward: game.fineNoForward,
   subscribeChange: game.subscribeChange,
   formTeamsNow: teams.formTeamsNow,

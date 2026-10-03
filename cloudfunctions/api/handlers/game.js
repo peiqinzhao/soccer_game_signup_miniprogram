@@ -28,6 +28,14 @@ const MP_STATE = { develop: 'developer', trial: 'trial', release: 'formal' }
 const mpState = (env) => MP_STATE[env] || 'formal'
 const NEW_MEMBER_MS = 14 * 24 * 60 * MIN
 
+function tagsOrThrow(input) {
+  try {
+    return rules.cleanTags(input)
+  } catch (e) {
+    throw new UserError(e.message)
+  }
+}
+
 function intIn(v, lo, hi, what) {
   const n = Math.round(Number(v))
   if (!Number.isFinite(n) || n < lo || n > hi) throw new UserError(`${what}需在 ${lo}–${hi} 之间`)
@@ -66,6 +74,7 @@ function buildGameFields(club, venue, f) {
     teamCount: intIn(f.teamCount ?? 3, 2, 6, '队数'),
     autoTeams: !!f.autoTeams,
     goalkeeper: !!f.autoTeams && !!f.goalkeeper,
+    tags: tagsOrThrow(f.tags),
     fineCents: intIn(f.fineCents ?? s.fineCents, 0, 100000, '罚款金额'),
     cancelDeadlineAt,
     signupOpensAt,
@@ -172,6 +181,7 @@ async function gameForm({ openid, clubId, gameId, copyLast }) {
     teamCount: src.teamCount || 3,
     autoTeams: !!src.autoTeams,
     goalkeeper: !!src.goalkeeper,
+    tags: src.tags || [],
     lateGraceMin: src.lateGraceMin,
     fineCents: src.fineCents,
     signupOpens: signup,
@@ -297,6 +307,7 @@ async function getGame({ openid, gameId }) {
       cancelledAt: r.cancelledAt || 0,
       cancelPhase: r.cancelPhase || '',
       cancelledFrom: r.cancelledFrom || '',
+      tags: (r.tags || []).filter((t) => (game.tags || []).includes(t)),
       checkinAt: r.checkinAt || 0,
       checkinMethod: r.checkinMethod || '',
       attendance: r.attendance || '',
@@ -395,6 +406,7 @@ async function signup({ openid, gameId, inviter, subscribed, subscribedChange, e
         team: '',
         gk: 0,
         teamInitial: false,
+        tags: [],
         subscribed: status === 'waitlist' && !!subscribed,
         subscribedChange: !!subscribedChange,
         mpState: mpState(envVersion),
@@ -698,8 +710,28 @@ async function fineNoForward({ openid, gameId, target }) {
   return { fineId: fine._id }
 }
 
+// 队员给自己打/取消标签；管理员可以帮别人改。比赛结束后也能改（例如训练完再标“已付款”）
+async function toggleTag({ openid, gameId, tag, target, on }) {
+  const game = await mustGet('games', gameId, '比赛')
+  if (!(game.tags || []).includes(tag)) throw new UserError('本场没有这个标签')
+  const who = target || openid
+  if (who !== openid) await requireAdmin(game.clubId, openid)
+  const reg = await getDoc('registrations', regId(gameId, who))
+  if (!reg || reg.status !== 'registered') throw new UserError('只有已报名的人可以打标签')
+  const has = (reg.tags || []).includes(tag)
+  const want = on === undefined ? !has : !!on
+  if (want !== has) {
+    await db
+      .collection('registrations')
+      .doc(reg._id)
+      .update({ data: { tags: want ? _.push([tag]) : _.pull(tag) } })
+  }
+  return { on: want }
+}
+
 module.exports = {
   buildGameFields,
+  toggleTag,
   fineNoForward,
   subscribeChange,
   saveGame,

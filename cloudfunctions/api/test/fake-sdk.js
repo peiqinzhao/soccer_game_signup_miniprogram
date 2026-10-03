@@ -15,6 +15,8 @@ const command = {
   gte: (v) => cmd('gte', v),
   inc: (v) => cmd('inc', v),
   neq: (v) => cmd('neq', v),
+  push: (v) => cmd('push', v),
+  pull: (v) => cmd('pull', v),
   exists: (v) => cmd('exists', v),
 }
 
@@ -36,6 +38,8 @@ function match(doc, where) {
 function apply(doc, data) {
   for (const [k, v] of Object.entries(data)) {
     if (v && v.__cmd === 'inc') doc[k] = (doc[k] || 0) + v.v
+    else if (v && v.__cmd === 'push') doc[k] = [...(doc[k] || []), ...v.v]
+    else if (v && v.__cmd === 'pull') doc[k] = (doc[k] || []).filter((x) => x !== v.v)
     else doc[k] = v
   }
 }

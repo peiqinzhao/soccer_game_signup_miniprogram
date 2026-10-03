@@ -176,3 +176,41 @@ test('heals a drifted registeredCount and promotes the waitlist; marks waitlist 
   const quit = g.cancelled.find((r) => r.name === 'C')
   assert.strictEqual(quit.cancelledFrom, 'waitlist')
 })
+
+test('game tags: admin defines, players self-toggle, admin can edit others', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  fake.setNow(startAt - 2 * 24 * 60 * MIN)
+  for (const id of ['o', 'a', 'b']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const form = { date: '2026-10-04', time: '10:00', timezone: tz, venueId }
+  assert.match(await apiErr('o', 'saveGame', { clubId, form: { ...form, tags: '已付款,带球,带背心,能守门' } }), /最多 3 个/)
+  assert.match(await apiErr('o', 'saveGame', { clubId, form: { ...form, tags: ['这个标签太长了吧'] } }), /太长/)
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { ...form, tags: '已付款，带球 已付款' } })
+  assert.deepStrictEqual((await api('o', 'gameForm', { clubId, gameId })).form.tags, ['已付款', '带球'])
+
+  await api('a', 'signup', { gameId, inviter: 'o' })
+  await api('b', 'signup', { gameId, inviter: 'o' })
+  assert.deepStrictEqual(await api('a', 'toggleTag', { gameId, tag: '已付款' }), { on: true })
+  assert.match(await apiErr('a', 'toggleTag', { gameId, tag: '不存在' }), /没有这个标签/)
+  assert.match(await apiErr('a', 'toggleTag', { gameId, tag: '已付款', target: 'b' }), /管理员/)
+  assert.match(await apiErr('o', 'toggleTag', { gameId, tag: '已付款' }), /已报名/) // o 没报名
+  await api('o', 'toggleTag', { gameId, tag: '已付款', target: 'b', on: true })
+  await api('o', 'toggleTag', { gameId, tag: '已付款', target: 'b', on: true }) // 幂等
+  let g = await api('b', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => [r.name, r.tags]), [['A', ['已付款']], ['B', ['已付款']]])
+
+  // 赛后也能改；取消
+  fake.setNow(startAt + 3 * 60 * MIN)
+  assert.deepStrictEqual(await api('a', 'toggleTag', { gameId, tag: '已付款' }), { on: false })
+  // 管理员删掉标签定义后不再显示
+  fake.setNow(startAt - 60 * MIN)
+  await api('o', 'saveGame', { clubId, gameId, form: { ...form, tags: '带球' } })
+  g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => r.tags), [[], []])
+  assert.deepStrictEqual(g.game.tags, ['带球'])
+})
