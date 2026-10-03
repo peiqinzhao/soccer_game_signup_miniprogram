@@ -97,6 +97,7 @@
       <text class="bold">管理员</text>
       <view class="row">
         <text class="btn btn-ghost btn-sm" bindtap="toggleCode">签到码</text>
+        <text class="btn btn-ghost btn-sm" style="margin-left:12rpx;" bindtap="onEditTags">标签</text>
         <text wx:if="{{!settled}}" class="btn btn-ghost btn-sm" style="margin-left:12rpx;" bindtap="onEdit">编辑</text>
         <text wx:if="{{!settled}}" class="btn btn-danger btn-sm" style="margin-left:12rpx;" bindtap="onCancelGame">取消比赛</text>
       </view>

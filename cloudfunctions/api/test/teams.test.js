@@ -213,4 +213,15 @@ test('game tags: admin defines, players self-toggle, admin can edit others', asy
   g = await api('o', 'getGame', { gameId })
   assert.deepStrictEqual(g.registered.map((r) => r.tags), [[], []])
   assert.deepStrictEqual(g.game.tags, ['带球'])
+
+  // 结算后：完整编辑被锁，但管理员仍可改标签，球员仍可打标签
+  fake.setNow(startAt + 3 * 60 * MIN)
+  await api('o', 'getGame', { gameId }) // 触发结算
+  assert.match(await apiErr('o', 'saveGame', { clubId, gameId, form: { ...form, tags: '已付款' } }), /已结算/)
+  assert.match(await apiErr('a', 'setGameTags', { gameId, tags: '已付款' }), /管理员/)
+  assert.deepStrictEqual(await api('o', 'setGameTags', { gameId, tags: '已付款' }), { tags: ['已付款'] })
+  assert.deepStrictEqual(await api('a', 'toggleTag', { gameId, tag: '已付款' }), { on: true })
+  g = await api('o', 'getGame', { gameId })
+  // B 之前打过“已付款”，标签删掉再加回来后恢复显示
+  assert.deepStrictEqual(g.registered.map((r) => r.tags), [['已付款'], ['已付款']])
 })

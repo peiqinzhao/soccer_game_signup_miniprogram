@@ -454,6 +454,20 @@ Page({
     if (await run('toggleTag', { gameId: this.data.id, tag }, '')) this.load()
   },
 
+  // 管理员随时可改本场标签（比赛结算后也可以）
+  async onEditTags() {
+    const cur = (this.data.d!.game.tags || []).join('，')
+    const r = await wx.showModal({
+      title: '修改可选标签',
+      content: cur,
+      editable: true,
+      placeholderText: '如：已付款（最多 3 个，逗号分隔）',
+    })
+    if (!r.confirm) return
+    const tags = (r.content || '').split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean)
+    if (await run('setGameTags', { gameId: this.data.id, tags }, '保存中')) this.load()
+  },
+
   // ---------- 复制名单 ----------
 
   onCopyRoster() {

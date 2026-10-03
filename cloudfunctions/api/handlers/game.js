@@ -729,9 +729,20 @@ async function toggleTag({ openid, gameId, tag, target, on }) {
   return { on: want }
 }
 
+// 管理员随时可改标签定义（含比赛结算后），其他字段仍受编辑限制
+async function setGameTags({ openid, gameId, tags }) {
+  const game = await mustGet('games', gameId, '比赛')
+  await requireAdmin(game.clubId, openid)
+  if (game.status !== 'active') throw new UserError('比赛已取消')
+  const next = tagsOrThrow(tags)
+  await db.collection('games').doc(gameId).update({ data: { tags: next } })
+  return { tags: next }
+}
+
 module.exports = {
   buildGameFields,
   toggleTag,
+  setGameTags,
   fineNoForward,
   subscribeChange,
   saveGame,
