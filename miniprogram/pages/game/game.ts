@@ -58,6 +58,18 @@ function envVersion(): string {
   }
 }
 
+// 例：通知：变更 18/24 · 替补 3/5 · 开放提醒 12 人待发
+function notifyText(d: GameDetail, t: number): string {
+  const n = d.notifyStats
+  if (!n) return ''
+  const parts = [`变更 ${n.change}/${n.active}`]
+  if (n.waitlist) parts.push(`替补 ${n.promoted}/${n.waitlist}`)
+  if (d.game.signupOpensAt) {
+    parts.push(t < d.game.signupOpensAt ? `开放提醒 ${n.openPending} 人待发` : `开放提醒已送达 ${n.openDelivered} 人`)
+  }
+  return `通知：${parts.join(' · ')}`
+}
+
 let clockSkew = 0 // serverNow - Date.now()
 const now = () => Date.now() + clockSkew
 
@@ -126,6 +138,7 @@ Page({
     unpaidText: '',
     fineText: '',
     myCheckinText: '',
+    notifyText: '', // 管理员看的通知覆盖情况
     formatStr: '',
     teamSizesText: '',
     tagStats: '', // 如“已付款 18/24”
@@ -210,6 +223,7 @@ Page({
       myTags:
         reg && reg.status === 'registered' ? (g.tags || []).map((tag) => ({ tag, on: (reg.tags || []).includes(tag) })) : [],
       myCheckinText: reg && reg.checkinAt ? fmtTime(reg.checkinAt) : '',
+      notifyText: notifyText(d, t),
     })
     this.updateList()
     wx.setNavigationBarTitle({ title: g.title })

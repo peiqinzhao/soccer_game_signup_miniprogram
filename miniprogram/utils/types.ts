@@ -110,9 +110,19 @@ export interface TeamsView {
   myGk: number
 }
 
+export interface NotifyStats {
+  change: number
+  active: number
+  promoted: number
+  waitlist: number
+  openPending: number
+  openDelivered: number
+}
+
 export interface GameDetail {
   serverNow: number
   fines: GameFine[]
+  notifyStats: NotifyStats | null
   teams: TeamsView | null
   game: Game
   club: { _id: string; name: string; venmo: string }

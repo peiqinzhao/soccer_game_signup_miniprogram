@@ -47,6 +47,9 @@ test('admins can sign up before opening; open reminders fire when signup opens a
 
   // 设置提醒
   await api('x', 'setOpenReminder', { gameId, envVersion: 'trial' })
+  const st = (await api('o', 'getGame', { gameId })).notifyStats
+  assert.deepStrictEqual(st, { change: 0, active: 1, promoted: 0, waitlist: 0, openPending: 1, openDelivered: 0 })
+  assert.strictEqual((await api('x', 'getGame', { gameId })).notifyStats, null) // 非管理员看不到
   assert.strictEqual((await api('x', 'getGame', { gameId })).me.openReminder, true)
   assert.strictEqual((await api('a', 'getGame', { gameId })).me.openReminder, false)
 

@@ -114,6 +114,7 @@
       <view style="font-size:96rpx; font-weight:700; letter-spacing:16rpx;">{{code.value}}</view>
       <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
     </view>
+    <view wx:if="{{notifyText}}" class="sub small mt">{{notifyText}}</view>
     <view class="hint">点名单里的人可以：代签到、修正出勤、改标签、豁免或确认罚款、修改名字；「缺席」里截止后才取消的人可以罚“缺席未转发”</view>
   </view>
 

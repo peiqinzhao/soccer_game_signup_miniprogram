@@ -342,8 +342,25 @@ async function getGame({ openid, gameId }) {
       }))
     : []
 
+  // 通知覆盖情况，只给管理员看
+  let notifyStats = null
+  if (isAdmin) {
+    const active = regs.filter((r) => r.status === 'registered' || r.status === 'waitlist')
+    const waiting = regs.filter((r) => r.status === 'waitlist')
+    const reminders = game.signupOpensAt ? await listAll(db.collection('reminders').where({ gameId })) : []
+    notifyStats = {
+      change: active.filter((r) => r.subscribedChange).length,
+      active: active.length,
+      promoted: waiting.filter((r) => r.subscribed).length,
+      waitlist: waiting.length,
+      openPending: reminders.filter((r) => !r.sent).length,
+      openDelivered: reminders.filter((r) => r.result === 'delivered').length,
+    }
+  }
+
   return {
     fines,
+    notifyStats,
     teams: teams.teamsView(game, regs, profiles, openid),
     serverNow: now,
     game: publicGame(game),
