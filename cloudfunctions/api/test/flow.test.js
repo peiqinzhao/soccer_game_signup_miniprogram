@@ -318,11 +318,17 @@ test('time change and cancellation notify subscribers', async () => {
   assert.match(await apiErr('q', 'cancelGame', { gameId }), /管理员/)
   assert.match(await apiErr('o', 'cancelGame', { gameId }), /已经取消/)
 
-  // 结束后进入历史列表
+  // 删除已取消的比赛：从近期/历史列表里消失；未取消的不能删；非管理员不能删
+  assert.match(await apiErr('q', 'archiveGame', { gameId }), /管理员/)
+  await api('o', 'archiveGame', { gameId })
+  assert.strictEqual((await api('q', 'listGames')).games.length, 0)
+
+  // 已删除的比赛也不进历史列表
   fake.setNow(startAt + 10 * 60 * MIN) // 比赛 11:00–13:00，结束 6 小时后
   assert.strictEqual((await api('p', 'listGames')).games.length, 0)
-  const hist = (await api('p', 'listGames', { history: true })).games
-  assert.deepStrictEqual(hist.map((x) => [x._id, x.myStatus]), [[gameId, 'registered']])
+  assert.strictEqual((await api('p', 'listGames', { history: true })).games.length, 0)
+  const { gameId: g2 } = await api('o', 'saveGame', { clubId, form: { ...form, date: '2026-10-11' } })
+  assert.match(await apiErr('o', 'archiveGame', { gameId: g2 }), /只能删除已取消/)
   config.CHANGED_TEMPLATE_ID = ''
 })
 

@@ -32,6 +32,7 @@ export interface Game {
   note: string
   timezone: string
   tzOffsetMin: number
+  lateAt: number // 从这一刻起签到算迟到
   startAt: number
   endAt: number
   cutoffAt: number
@@ -53,6 +54,7 @@ export interface Game {
   teamsFormedAt?: number
   cancelReason?: string
   cancelledAt?: number
+  archived?: boolean
   lastChange?: { at: number; text: string }
   settledAt: number
   venue: { id: string; name: string; address: string; lat: number; lng: number; radiusM: number }

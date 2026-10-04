@@ -67,7 +67,7 @@ function buildGameFields(club, venue, f) {
     durationMin,
     endAt: startAt + durationMin * MIN,
     lateGraceMin,
-    cutoffAt: startAt + lateGraceMin * MIN,
+    cutoffAt: startAt + (lateGraceMin + 1) * MIN, // 迟到开始的时刻，也是结算时刻
     capacity: intIn(f.capacity ?? s.capacity, 1, 100, '人数上限'),
     // 赛制与分队（默认 8v8v8，分队/守门员默认关闭）
     teamSize: intIn(f.teamSize ?? 8, 2, 20, '每队人数'),
@@ -214,16 +214,26 @@ async function cancelGame({ openid, gameId, reason }) {
   return { notified, waived }
 }
 
+// 删除已取消的比赛：只是从列表里隐藏（archived），数据保留，罚款记录不受影响
+async function archiveGame({ openid, gameId }) {
+  const game = await mustGet('games', gameId, '比赛')
+  await requireAdmin(game.clubId, openid)
+  if (game.status !== 'cancelled') throw new UserError('只能删除已取消的比赛，请先取消')
+  await db.collection('games').doc(gameId).update({ data: { archived: true, archivedBy: openid, archivedAt: Date.now() } })
+  return {}
+}
+
 function publicGame(game) {
   const { checkinSecret, ...rest } = game
   const tz = game.timezone
   return {
     ...rest,
     tzOffsetMin: T.offsetMin(game.startAt, tz),
+    lateAt: rules.lateAt(game),
     local: {
       start: T.fmtLocal(game.startAt, tz),
       end: T.fmtLocal(game.endAt, tz).slice(-5),
-      cutoff: T.fmtLocal(game.cutoffAt, tz),
+      cutoff: T.fmtLocal(rules.lateAt(game), tz), // 从这一分钟起签到算迟到
       cancelDeadline: T.fmtLocal(game.cancelDeadlineAt, tz),
       signupOpens: game.signupOpensAt ? T.fmtLocal(game.signupOpensAt, tz) : '',
     },
@@ -245,11 +255,11 @@ async function listGames({ openid, history }) {
   const query = history
     ? db
         .collection('games')
-        .where({ clubId: _.in(clubIds), endAt: _.lt(now) })
+        .where({ clubId: _.in(clubIds), endAt: _.lt(now), archived: _.neq(true) })
         .orderBy('startAt', 'desc')
     : db
         .collection('games')
-        .where({ clubId: _.in(clubIds), endAt: _.gte(now - 6 * 60 * MIN) })
+        .where({ clubId: _.in(clubIds), endAt: _.gte(now - 6 * 60 * MIN), archived: _.neq(true) })
         .orderBy('startAt', 'asc')
   const games = await listAll(query, 30)
   const regs = games.length
@@ -609,7 +619,10 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
     if (!Number.isFinite(pos.lat) || !Number.isFinite(pos.lng)) throw new UserError('定位失败，请重试')
     const d = Math.round(rules.haversineM(pos, game.venue))
     if (d > game.venue.radiusM) {
-      throw new UserError(`你距离球场约 ${d} 米，需在 ${game.venue.radiusM} 米内才能签到`)
+      const acc = Math.round(Number(accuracy) || 0)
+      console.log('checkin too far', JSON.stringify({ gameId, openid, d, acc, radius: game.venue.radiusM }))
+      const hint = acc > game.venue.radiusM ? `（当前定位精度约 ${acc} 米，可能没开“精确位置”）` : ''
+      throw new UserError(`你距离球场约 ${d} 米，需在 ${game.venue.radiusM} 米内才能签到${hint}。定位有问题可以向管理员要签到码`)
     }
     Object.assign(data, {
       checkinMethod: 'gps',
@@ -620,15 +633,23 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
 
   const attendance = rules.attendanceFor(now, game)
   if (game.settledAt) {
-    // 已经判过“未到”的人后来到了：改成迟到
+    // 结算时还没签到（判了“未到”）的人后来到了：改成迟到；早期比赛结算得早，可能其实算准时
     data.attendance = attendance
     const fine = await getDoc('fines', `${gameId}_${openid}_attendance`)
-    if (fine && fine.status === 'pending' && fine.reason === 'no_show') {
-      await db.collection('fines').doc(fine._id).update({ data: { reason: 'late' } })
+    if (fine && fine.status === 'pending') {
+      if (attendance === 'on_time') {
+        await db
+          .collection('fines')
+          .doc(fine._id)
+          .update({ data: { status: 'waived', note: '按时签到', resolvedBy: 'system', resolvedAt: now } })
+      } else if (fine.reason === 'no_show') {
+        await db.collection('fines').doc(fine._id).update({ data: { reason: 'late' } })
+      }
     }
   }
   await db.collection('registrations').doc(reg._id).update({ data })
-  if (!game.settledAt) await teams.afterCheckin(gameId, openid)
+  // 迟到的人也要分队、排守门员
+  await teams.afterCheckin(gameId, openid)
   return { attendance, distanceM: data.checkinDistanceM }
 }
 
@@ -660,7 +681,12 @@ async function setAttendance({ openid, gameId, target, attendance }) {
     return {}
   }
 
-  await db.collection('registrations').doc(reg._id).update({ data: { attendance, checkinMethod: 'admin' } })
+  const present = attendance !== 'no_show'
+  await db
+    .collection('registrations')
+    .doc(reg._id)
+    .update({ data: { attendance, checkinMethod: 'admin', ...(present && !reg.checkinAt ? { checkinAt: Date.now() } : {}) } })
+  if (present && Date.now() <= game.endAt) await teams.afterCheckin(gameId, target)
   const fineId = `${gameId}_${target}_attendance`
   const fine = await getDoc('fines', fineId)
   if (attendance === 'on_time') {
@@ -741,6 +767,7 @@ async function setGameTags({ openid, gameId, tags }) {
 }
 
 module.exports = {
+  archiveGame,
   buildGameFields,
   toggleTag,
   setGameTags,

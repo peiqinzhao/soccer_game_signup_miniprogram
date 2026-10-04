@@ -8,7 +8,7 @@ Page({
     t: null as TeamsView | null,
     myOpenid: '',
     isAdmin: false,
-    settled: false,
+    ended: false, // 比赛结束前管理员都可以重新分队、重排守门员
     formatStr: '',
   },
 
@@ -44,7 +44,7 @@ Page({
       t: d.teams,
       myOpenid: d.me.openid,
       isAdmin: d.me.isAdmin,
-      settled: !!d.game.settledAt,
+      ended: d.serverNow >= d.game.endAt,
       formatStr: formatText(d.game.teamSize, d.game.teamCount),
     })
   },

@@ -12,7 +12,7 @@
       </view>
       <view wx:if="{{t.goalkeeper && team.members.length}}" class="row-between mb">
         <text class="sub small">🧤 按编号顺序轮流守门</text>
-        <text wx:if="{{isAdmin && !settled && team.members.length > 1}}" class="link small" data-team="{{team.name}}" bindtap="onReshuffleGk">重排守门员</text>
+        <text wx:if="{{isAdmin && !ended && team.members.length > 1}}" class="link small" data-team="{{team.name}}" bindtap="onReshuffleGk">重排守门员</text>
       </view>
       <view wx:for="{{team.members}}" wx:key="openid" class="row" style="padding:10rpx 0;">
         <text class="gk {{t.goalkeeper ? '' : 'plain'}}">{{item.gk}}</text>
@@ -24,7 +24,7 @@
     </view>
 
     <view class="hint" style="text-align:center;">页面每 15 秒自动刷新</view>
-    <button wx:if="{{isAdmin && !settled}}" class="btn btn-ghost mt" bindtap="onReshuffle">重新随机分队</button>
+    <button wx:if="{{isAdmin && !ended}}" class="btn btn-ghost mt" bindtap="onReshuffle">重新随机分队</button>
     <button class="btn mt" open-type="share">转发分队结果</button>
   </block>
 </view>

@@ -29,6 +29,7 @@ const ACTIONS = {
   gameForm: game.gameForm,
   saveGame: game.saveGame,
   cancelGame: game.cancelGame,
+  archiveGame: game.archiveGame,
   signup: game.signup,
   cancelSignup: game.cancelSignup,
   checkin: game.checkin,

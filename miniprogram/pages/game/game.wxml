@@ -38,6 +38,14 @@
     </block>
   </view>
 
+  <!-- 已取消的比赛：管理员可删除（从列表隐藏） -->
+  <view wx:if="{{d.me.isAdmin && d.game.status === 'cancelled' && !d.game.archived}}" class="card">
+    <view class="row-between">
+      <text class="sub small">比赛已取消，可以从列表里删除</text>
+      <text class="btn btn-danger btn-sm" bindtap="onArchiveGame">删除比赛</text>
+    </view>
+  </view>
+
   <!-- 未付罚款 -->
   <view wx:if="{{unpaidText}}" class="card" style="background:#fdecea;">
     <view class="bad bold">你有未付罚款 {{unpaidText}}</view>
@@ -59,11 +67,11 @@
   <view wx:if="{{myStatus === 'registered' && d.game.status === 'active'}}" class="card">
     <view wx:if="{{d.me.reg.checkinAt}}" class="row-between">
       <text class="ok bold">✓ 已签到 {{myCheckinText}}</text>
-      <text wx:if="{{d.me.reg.checkinAt > d.game.cutoffAt}}" class="tag tag-bad">迟到</text>
+      <text wx:if="{{d.me.reg.checkinAt >= d.game.lateAt}}" class="tag tag-bad">迟到</text>
     </view>
     <view wx:elif="{{canCheckin}}">
       <button class="btn" bindtap="onCheckin">到场签到</button>
-      <view class="hint">需在球场 {{d.game.venue.radiusM}} 米内。{{d.game.local.cutoff}} 后签到记为迟到。</view>
+      <view class="hint">需在球场 {{d.game.venue.radiusM}} 米内。{{d.game.local.cutoff}} 起签到记为迟到。</view>
       <view class="small link mt" bindtap="onCheckinByCode">定位有问题？用签到码</view>
     </view>
     <view wx:elif="{{checkinNotYet}}" class="sub">签到将于 {{checkinOpensText}} 开放（开赛前 {{d.game.checkinOpenBeforeMin}} 分钟）</view>
@@ -85,7 +93,7 @@
       <view class="sub small mt">{{teamSizesText}}</view>
     </block>
     <view wx:else class="sub mt">已签到 {{d.teams.checkedIn}}/{{d.teams.threshold}}，满 {{d.teams.threshold}} 人自动随机分队</view>
-    <view wx:if="{{d.me.isAdmin && !settled}}" class="row mt">
+    <view wx:if="{{d.me.isAdmin && !ended}}" class="row mt">
       <text wx:if="{{!d.teams.formed}}" class="btn btn-ghost btn-sm" bindtap="onFormTeams">立即分队</text>
       <text wx:else class="btn btn-ghost btn-sm" bindtap="onReshuffle">重新随机</text>
     </view>

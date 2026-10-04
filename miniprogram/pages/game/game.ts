@@ -373,6 +373,15 @@ Page({
       }
       return
     }
+    // iPhone/安卓只给微信“大致位置”时，误差有几公里，怎么签都不在范围内
+    if (loc.accuracy && loc.accuracy > Math.max(500, this.data.d!.game.venue.radiusM * 3)) {
+      wx.showModal({
+        title: '定位不够精确',
+        content: `当前定位误差约 ${Math.round(loc.accuracy)} 米，可能只开了“大致位置”。\niPhone：设置 → 微信 → 位置 → 打开“精确位置”。\n安卓：系统设置 → 应用 → 微信 → 位置 → 允许使用精确位置。\n也可以向管理员要签到码。`,
+        showCancel: false,
+      })
+      return
+    }
     const res = await run<{ attendance: string; distanceM?: number }>(
       'checkin',
       { gameId: this.data.id, lat: loc.latitude, lng: loc.longitude, accuracy: loc.accuracy },
@@ -433,6 +442,20 @@ Page({
     if (await run('setOpenReminder', { gameId: this.data.id, envVersion: envVersion() }, '')) {
       wx.showToast({ title: '已设置提醒', icon: 'success' })
       this.load()
+    }
+  },
+
+  async onArchiveGame() {
+    const r = await wx.showModal({
+      title: '删除比赛',
+      content: '这场比赛将从近期和历史列表中移除，罚款等记录不受影响。',
+      confirmText: '删除',
+      confirmColor: '#d4380d',
+    })
+    if (!r.confirm) return
+    if (await run('archiveGame', { gameId: this.data.id }, '删除中')) {
+      wx.showToast({ title: '已删除', icon: 'success' })
+      setTimeout(() => wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/home/home' }) }), 600)
     }
   },
 

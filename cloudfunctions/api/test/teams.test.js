@@ -229,3 +229,43 @@ test('game tags: admin defines, players self-toggle, admin can edit others', asy
   // B 之前打过“已付款”，标签删掉再加回来后恢复显示
   assert.deepStrictEqual(g.registered.map((r) => r.tags), [['已付款'], ['已付款']])
 })
+
+test('first real game fixes: 10:10:xx is on time, late arrivals join teams, old-cutoff fines corrected', async () => {
+  const { gameId, ids, checkin } = await setup({ capacity: 24, teamSize: 8, teamCount: 3, players: 20 })
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  for (const id of ids.slice(0, 16)) await checkin(id) // 分队
+  // 10:10:30 签到：准时
+  fake.setNow(startAt + 10 * MIN + 30 * 1000)
+  assert.strictEqual((await api(ids[16], 'checkin', { gameId, ...VENUE })).attendance, 'on_time')
+  // 10:12 签到：迟到，结算之后也分进队、排守门员
+  fake.setNow(startAt + 12 * MIN)
+  await api('o', 'getGame', { gameId }) // 结算
+  assert.strictEqual((await api(ids[17], 'checkin', { gameId, ...VENUE })).attendance, 'late')
+  let t = (await api('o', 'getGame', { gameId })).teams
+  const late = t.teams.flatMap((x) => x.members).find((m) => m.openid === ids[17])
+  assert.ok(late && late.gk > 0, 'late player should be in a team with a goalkeeper number')
+  // 管理员把未到的人改为迟到（人其实在场）：也分进队
+  await api('o', 'setAttendance', { gameId, target: ids[18], attendance: 'late' })
+  t = (await api('o', 'getGame', { gameId })).teams
+  assert.ok(t.teams.flatMap((x) => x.members).some((m) => m.openid === ids[18]))
+  // 分队后的操作在结算后仍可用
+  await api('o', 'reshuffleGoalkeepers', { gameId, team: 'C' })
+  await api('o', 'reshuffleTeams', { gameId })
+
+  // 早期比赛：cutoffAt 存的是 10:10:00，10:10 结算判了未到；10:10:40 来签到 → 准时并撤销罚款
+  const g = fake.store.games.get(gameId)
+  const reg = fake.store.registrations.get(`${gameId}_${ids[19]}`)
+  assert.strictEqual(reg.attendance, 'no_show')
+  g.cutoffAt = startAt + 10 * MIN
+  g.endAt = startAt + 120 * MIN
+  fake.setNow(startAt + 10 * MIN + 40 * 1000)
+  assert.strictEqual((await api(ids[19], 'checkin', { gameId, ...VENUE })).attendance, 'on_time')
+  const fine = fake.store.fines.get(`${gameId}_${ids[19]}_attendance`)
+  assert.deepStrictEqual([fine.status, fine.note], ['waived', '按时签到'])
+})
+
+test('check-in too far reports accuracy hint', async () => {
+  const { gameId, ids } = await setup({ capacity: 4, teamSize: 2, teamCount: 2, players: 2 })
+  const err = await apiErr(ids[1], 'checkin', { gameId, lat: VENUE.lat + 0.02, lng: VENUE.lng, accuracy: 3000 })
+  assert.match(err, /精确位置/)
+})

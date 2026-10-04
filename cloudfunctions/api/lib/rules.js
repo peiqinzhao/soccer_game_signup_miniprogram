@@ -61,9 +61,15 @@ function canCheckinAt(game, now) {
   return now >= checkinOpensAt(game) && now <= game.endAt
 }
 
+// 迟到从“开赛 + 宽限”的下一分钟开始算：宽限 10 分钟，10:10:59 算准时，10:11:00 起算迟到（群规“10:11 罚款”）。
+// 按 startAt 和 lateGraceMin 现算，不依赖存下来的 cutoffAt（早期比赛的 cutoffAt 是 10:10:00）。
+function lateAt(game) {
+  return game.startAt + (game.lateGraceMin + 1) * MIN
+}
+
 function attendanceFor(checkinAt, game) {
   if (!checkinAt) return 'no_show'
-  return checkinAt <= game.cutoffAt ? 'on_time' : 'late'
+  return checkinAt < lateAt(game) ? 'on_time' : 'late'
 }
 
 // 在开赛前 penaltyWindowMin 内才递补上的人，可能来不及看到通知，不自动罚款
@@ -106,6 +112,7 @@ module.exports = {
   cancelPhase,
   checkinOpensAt,
   canCheckinAt,
+  lateAt,
   attendanceFor,
   isLatePromotion,
   haversineM,
