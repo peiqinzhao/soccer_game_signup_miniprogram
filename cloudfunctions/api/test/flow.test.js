@@ -66,6 +66,7 @@ test('full game flow', async () => {
   assert.strictEqual(g.registered[0].inviterName, '老王')
   assert.strictEqual(g.waitlist[0].inviterName, 'A')
   assert.strictEqual(g.registered[0].isNew, true)
+  assert.deepStrictEqual(g.registered.map((r) => r.isAdmin), [false, false])
 
   // 缺席截止前取消：free，C 递补并收到通知
   assert.deepStrictEqual(await api('a', 'cancelSignup', { gameId }), { phase: 'free', fined: false })
@@ -188,8 +189,9 @@ test('full game flow', async () => {
     /原因/,
   )
 
-  // 管理员权限：owner 设 a 为管理员后 a 可以发起
+  // 管理员权限：owner 设 a 为管理员后 a 可以发起，名单上显示管理员
   await api('owner', 'setRole', { clubId, target: 'a', role: 'admin' })
+  assert.strictEqual((await api('b', 'getGame', { gameId })).registered.find((r) => r.openid === 'a').isAdmin, true)
   assert.ok((await api('a', 'gameForm', { clubId, copyLast: true })).form)
   assert.match(await apiErr('a', 'setRole', { clubId, target: 'b', role: 'admin' }), /只有创建者/)
 

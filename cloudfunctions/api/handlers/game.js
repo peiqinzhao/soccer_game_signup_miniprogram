@@ -299,6 +299,7 @@ async function getGame({ openid, gameId }) {
       name: p.name,
       avatar: p.avatar,
       isNew: !!p.joinedAt && now - p.joinedAt < NEW_MEMBER_MS,
+      isAdmin: isAdminRole(p.role),
       inviterName: r.inviter ? (profiles[r.inviter] || {}).name || '' : '',
       status: r.status,
       signedAt: r.signedAt,

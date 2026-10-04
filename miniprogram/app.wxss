@@ -43,6 +43,7 @@ page {
 .tag-ok { background: #e6f6ec; color: var(--ok); }
 .tag-warn { background: #fff4e0; color: var(--warn); }
 .tag-bad { background: #fdecea; color: var(--bad); }
+.tag-admin { background: #111; color: #fff; }
 
 .avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #ddd; flex-shrink: 0; }
 .avatar-lg { width: 120rpx; height: 120rpx; }

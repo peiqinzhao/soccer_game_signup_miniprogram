@@ -66,6 +66,7 @@ export interface RegView {
   name: string
   avatar: string
   isNew: boolean
+  isAdmin?: boolean
   inviterName: string
   status: 'registered' | 'waitlist' | 'cancelled'
   signedAt: number

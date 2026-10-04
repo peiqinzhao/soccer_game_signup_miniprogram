@@ -81,7 +81,7 @@ async function profilesFor(clubId, openids) {
   const map = {}
   for (const u of users) map[u._id] = { name: u.nickname || '未命名', avatar: u.avatar || '', joinedAt: 0 }
   for (const m of members) {
-    map[m.openid] = { ...(map[m.openid] || { avatar: '' }), name: m.name, joinedAt: m.joinedAt }
+    map[m.openid] = { ...(map[m.openid] || { avatar: '' }), name: m.name, joinedAt: m.joinedAt, role: m.role }
   }
   const url = await fileUrls(Object.values(map).map((p) => p.avatar))
   for (const p of Object.values(map)) p.avatar = url(p.avatar)

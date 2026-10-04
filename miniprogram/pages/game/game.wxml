@@ -130,6 +130,7 @@
         <view class="flex1" style="margin-left:20rpx;">
           <view class="row">
             <text class="ellipsis">{{item.name}}</text>
+            <text wx:if="{{item.isAdmin}}" class="tag tag-admin">管理员</text>
             <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
             <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
             <text wx:if="{{item.fineText}}" class="tag {{item.fineClass}}">{{item.fineText}}</text>
