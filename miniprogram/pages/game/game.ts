@@ -173,6 +173,11 @@ Page({
     const d = await run<GameDetail>('getGame', { gameId: this.data.id }, this.data.loaded ? '' : '加载中')
     if (!d) return
     clockSkew = d.serverNow - Date.now()
+    this.render(d)
+  },
+
+  // 根据比赛数据刷新界面（不请求服务器）
+  render(d: GameDetail) {
     const g = d.game
     const t = now()
     const settled = !!g.settledAt
@@ -449,9 +454,45 @@ Page({
 
   // ---------- 标签 ----------
 
-  async onToggleMyTag(e: WechatMiniprogram.TouchEvent) {
+  onToggleMyTag(e: WechatMiniprogram.TouchEvent) {
+    const reg = this.data.d && this.data.d.me.reg
+    if (!reg) return
     const tag: string = e.currentTarget.dataset.tag
-    if (await run('toggleTag', { gameId: this.data.id, tag }, '')) this.load()
+    this.toggleTagFor(reg.openid, tag, !(reg.tags || []).includes(tag))
+  },
+
+  // 先改界面再后台保存；失败则恢复并提示。不整页重新加载
+  tagBusy: {} as Record<string, boolean>,
+
+  async toggleTagFor(openid: string, tag: string, on: boolean) {
+    const key = `${openid}:${tag}`
+    if (this.tagBusy[key]) return
+    this.tagBusy[key] = true
+    this.setTagLocal(openid, tag, on)
+    try {
+      const isMe = openid === this.data.d!.me.openid
+      await call('toggleTag', { gameId: this.data.id, tag, on, target: isMe ? undefined : openid })
+    } catch (err) {
+      this.setTagLocal(openid, tag, !on)
+      toastError(err)
+    } finally {
+      this.tagBusy[key] = false
+    }
+  },
+
+  setTagLocal(openid: string, tag: string, on: boolean) {
+    const d = this.data.d
+    if (!d) return
+    const patch = (r: RegView): RegView => {
+      if (r.openid !== openid) return r
+      const rest = (r.tags || []).filter((t) => t !== tag)
+      return { ...r, tags: on ? [...rest, tag] : rest }
+    }
+    this.render({
+      ...d,
+      registered: d.registered.map(patch),
+      me: { ...d.me, reg: d.me.reg ? patch(d.me.reg) : null },
+    })
   },
 
   // 管理员随时可改本场标签（比赛结算后也可以）
@@ -617,7 +658,8 @@ Page({
           try {
             const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
             const tag = tags[r.tapIndex]
-            return run('toggleTag', { gameId: this.data.id, tag, target: openid, on: !mine.includes(tag) }, '保存中')
+            this.toggleTagFor(openid, tag, !mine.includes(tag))
+            return null // 已即时更新界面，不必整页刷新
           } catch (err) {
             return null
           }
