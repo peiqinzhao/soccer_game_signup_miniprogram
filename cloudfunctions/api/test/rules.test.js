@@ -11,7 +11,7 @@ const startAt = T.zonedToUtcMs('2026-09-27', '10:00', tz)
 const game = {
   startAt,
   endAt: startAt + 120 * MIN,
-  cutoffAt: startAt + 11 * MIN,
+  cutoffAt: startAt + 10 * MIN,
   lateGraceMin: 10,
   cancelDeadlineAt: T.deadlineBefore(startAt, tz, 1, '21:00'),
   penaltyWindowMin: 60,
@@ -41,11 +41,10 @@ test('cancel phases', () => {
   assert.strictEqual(rules.cancelPhase(game, startAt + 5 * MIN), 'penalty')
 })
 
-test('attendance: 10:10:59 on time, 10:11 late, none = no show', () => {
-  assert.strictEqual(rules.attendanceFor(startAt + 10 * MIN, game), 'on_time')
-  assert.strictEqual(rules.attendanceFor(startAt + 10 * MIN + 59999, game), 'on_time')
-  assert.strictEqual(rules.attendanceFor(startAt + 11 * MIN - 1, game), 'on_time')
-  assert.strictEqual(rules.attendanceFor(startAt + 11 * MIN, game), 'late')
+test('attendance: 10:09:59 on time, 10:10:00 late, none = no show', () => {
+  assert.strictEqual(rules.attendanceFor(startAt + 10 * MIN - 1, game), 'on_time')
+  assert.strictEqual(rules.attendanceFor(startAt + 10 * MIN, game), 'late')
+  assert.strictEqual(rules.attendanceFor(startAt + 10 * MIN + 30 * 1000, game), 'late')
   assert.strictEqual(rules.attendanceFor(0, game), 'no_show')
 })
 

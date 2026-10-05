@@ -1,6 +1,6 @@
 import { call, run, toastError } from '../../utils/api'
 import { getSession, needsProfile } from '../../utils/session'
-import { fmtTime, fmtShort, money, gameTimeText, ATTENDANCE_TEXT, formatText } from '../../utils/format'
+import { fmtTime, fmtTimeSec, fmtShort, money, gameTimeText, ATTENDANCE_TEXT, formatText } from '../../utils/format'
 import { GameDetail, GameFine, RegView } from '../../utils/types'
 import { PROMOTED_TEMPLATE_ID, CHANGED_TEMPLATE_ID, OPEN_TEMPLATE_ID } from '../../config'
 import { takeFlash } from '../../utils/flash'
@@ -87,7 +87,7 @@ function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
       badge = ATTENDANCE_TEXT[r.attendance]
       badgeClass = r.attendance === 'on_time' ? 'tag-ok' : 'tag-bad'
     } else if (r.checkinAt) {
-      badge = `已签到 ${fmtTime(r.checkinAt)}`
+      badge = `已签到 ${fmtTimeSec(r.checkinAt)}`
       badgeClass = 'tag-ok'
     }
   } else if (r.status === 'cancelled') {
@@ -222,7 +222,7 @@ Page({
         .join(' · '),
       myTags:
         reg && reg.status === 'registered' ? (g.tags || []).map((tag) => ({ tag, on: (reg.tags || []).includes(tag) })) : [],
-      myCheckinText: reg && reg.checkinAt ? fmtTime(reg.checkinAt) : '',
+      myCheckinText: reg && reg.checkinAt ? fmtTimeSec(reg.checkinAt) : '',
       notifyText: notifyText(d, t),
     })
     this.updateList()

@@ -12,6 +12,12 @@ export function fmtTime(ms: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+// 签到时间显示到秒，避免“显示 10:10 却算迟到”的误会
+export function fmtTimeSec(ms: number): string {
+  const d = new Date(ms)
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 export function fmtShort(ms: number): string {
   const d = new Date(ms)
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`

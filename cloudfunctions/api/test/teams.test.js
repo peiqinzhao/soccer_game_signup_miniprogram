@@ -230,12 +230,12 @@ test('game tags: admin defines, players self-toggle, admin can edit others', asy
   assert.deepStrictEqual(g.registered.map((r) => r.tags), [['已付款'], ['已付款']])
 })
 
-test('first real game fixes: 10:10:xx is on time, late arrivals join teams, old-cutoff fines corrected', async () => {
+test('first real game fixes: 10:10:00 is late, late arrivals join teams, no-show becomes late on arrival', async () => {
   const { gameId, ids, checkin } = await setup({ capacity: 24, teamSize: 8, teamCount: 3, players: 20 })
   const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
   for (const id of ids.slice(0, 16)) await checkin(id) // 分队
-  // 10:10:30 签到：准时
-  fake.setNow(startAt + 10 * MIN + 30 * 1000)
+  // 10:09:59 签到：准时
+  fake.setNow(startAt + 10 * MIN - 1000)
   assert.strictEqual((await api(ids[16], 'checkin', { gameId, ...VENUE })).attendance, 'on_time')
   // 10:12 签到：迟到，结算之后也分进队、排守门员
   fake.setNow(startAt + 12 * MIN)
@@ -252,16 +252,13 @@ test('first real game fixes: 10:10:xx is on time, late arrivals join teams, old-
   await api('o', 'reshuffleGoalkeepers', { gameId, team: 'C' })
   await api('o', 'reshuffleTeams', { gameId })
 
-  // 早期比赛：cutoffAt 存的是 10:10:00，10:10 结算判了未到；10:10:40 来签到 → 准时并撤销罚款
-  const g = fake.store.games.get(gameId)
+  // 结算时判了未到的人 10:20 才来：改成迟到，罚款原因同步改为迟到
   const reg = fake.store.registrations.get(`${gameId}_${ids[19]}`)
   assert.strictEqual(reg.attendance, 'no_show')
-  g.cutoffAt = startAt + 10 * MIN
-  g.endAt = startAt + 120 * MIN
-  fake.setNow(startAt + 10 * MIN + 40 * 1000)
-  assert.strictEqual((await api(ids[19], 'checkin', { gameId, ...VENUE })).attendance, 'on_time')
+  fake.setNow(startAt + 20 * MIN)
+  assert.strictEqual((await api(ids[19], 'checkin', { gameId, ...VENUE })).attendance, 'late')
   const fine = fake.store.fines.get(`${gameId}_${ids[19]}_attendance`)
-  assert.deepStrictEqual([fine.status, fine.note], ['waived', '按时签到'])
+  assert.deepStrictEqual([fine.status, fine.reason], ['pending', 'late'])
 })
 
 test('check-in too far reports accuracy hint', async () => {

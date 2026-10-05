@@ -61,10 +61,10 @@ function canCheckinAt(game, now) {
   return now >= checkinOpensAt(game) && now <= game.endAt
 }
 
-// 迟到从“开赛 + 宽限”的下一分钟开始算：宽限 10 分钟，10:10:59 算准时，10:11:00 起算迟到（群规“10:11 罚款”）。
-// 按 startAt 和 lateGraceMin 现算，不依赖存下来的 cutoffAt（早期比赛的 cutoffAt 是 10:10:00）。
+// 迟到从“开赛 + 宽限”这一刻起算：宽限 10 分钟，10:09:59 算准时，10:10:00 起算迟到。
+// 按 startAt 和 lateGraceMin 现算，不依赖存下来的 cutoffAt。
 function lateAt(game) {
-  return game.startAt + (game.lateGraceMin + 1) * MIN
+  return game.startAt + game.lateGraceMin * MIN
 }
 
 function attendanceFor(checkinAt, game) {

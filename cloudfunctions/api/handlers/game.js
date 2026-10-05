@@ -67,7 +67,7 @@ function buildGameFields(club, venue, f) {
     durationMin,
     endAt: startAt + durationMin * MIN,
     lateGraceMin,
-    cutoffAt: startAt + (lateGraceMin + 1) * MIN, // 迟到开始的时刻，也是结算时刻
+    cutoffAt: startAt + lateGraceMin * MIN, // 迟到开始的时刻，也是结算时刻
     capacity: intIn(f.capacity ?? s.capacity, 1, 100, '人数上限'),
     // 赛制与分队（默认 8v8v8，分队/守门员默认关闭）
     teamSize: intIn(f.teamSize ?? 8, 2, 20, '每队人数'),
