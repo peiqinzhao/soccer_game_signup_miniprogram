@@ -48,23 +48,39 @@ const MAX_ATTEMPTS = 3
 // 这些错误重试也没用：用户没授权/授权已用完、字段不合法、模板不对、用户拒收
 const PERMANENT = new Set([43101, 47003, 40037, 43107])
 
+const STUCK_MS = 2 * 60 * 1000 // 标记已处理后 2 分钟还没结果，视为上次运行被中途打断
+
 async function remindDue() {
   const now = Date.now()
+  // 上次运行超时被打断：已标记但没有结果的，放回队列
+  await db
+    .collection('reminders')
+    .where({ sent: true, result: _.exists(false), claimedAt: _.lt(now - STUCK_MS) })
+    .update({ data: { sent: false } })
+
   const due = await listAll(db.collection('reminders').where({ sent: false, remindAt: _.lte(now) }), 200)
   let sent = 0
   let failed = 0
   for (const r of due) {
     // 先标记，避免下一次定时器重复处理
-    const claim = await db.collection('reminders').where({ _id: r._id, sent: false }).update({ data: { sent: true } })
+    const claim = await db
+      .collection('reminders')
+      .where({ _id: r._id, sent: false })
+      .update({ data: { sent: true, claimedAt: Date.now() } })
     if (claim.stats.updated !== 1) continue
+    const finish = (result) => db.collection('reminders').doc(r._id).update({ data: { result } })
     const game = await getDoc('games', r.gameId)
-    if (!game || game.status !== 'active' || !game.signupOpensAt) continue
+    if (!game || game.status !== 'active' || !game.signupOpensAt) {
+      await finish('skipped: 比赛已取消或已关闭定时开放')
+      continue
+    }
     if (now - r.remindAt > STALE_MS) {
-      await db.collection('reminders').doc(r._id).update({ data: { result: 'stale' } })
+      await finish('stale')
       continue
     }
     if (!config.OPEN_TEMPLATE_ID) {
       console.warn('OPEN_TEMPLATE_ID 未配置，跳过开放提醒', r._id)
+      await finish('skipped: 未配置模板')
       continue
     }
     try {

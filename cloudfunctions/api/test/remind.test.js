@@ -135,3 +135,42 @@ test('open reminders retry transient errors, give up on permanent ones, skip sta
   assert.strictEqual(r.reminded, 0)
   config.OPEN_TEMPLATE_ID = saved
 })
+
+test('open reminders stuck by a timed-out run are retried', async () => {
+  fake.reset()
+  const saved = config.OPEN_TEMPLATE_ID
+  config.OPEN_TEMPLATE_ID = 'open'
+  const opens = T.zonedToUtcMs('2026-10-01', '20:00', tz)
+  fake.setNow(opens - 60 * MIN)
+  for (const id of ['o', 'x']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', {
+    clubId,
+    form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, signupOpens: { date: '2026-10-01', time: '20:00' } },
+  })
+  await api('x', 'setOpenReminder', { gameId })
+  // 模拟：20:00 那次运行标记了已处理，然后超时，没写结果
+  const rem = fake.store.reminders.get(`${gameId}_x`)
+  Object.assign(rem, { sent: true, claimedAt: opens + 1000 })
+  fake.setNow(opens + MIN) // 还没到 2 分钟：不动
+  assert.strictEqual((await tick()).reminded, 0)
+  fake.setNow(opens + 5 * MIN) // 下一轮：放回队列并发送
+  assert.strictEqual((await tick()).reminded, 1)
+  assert.strictEqual(fake.store.reminders.get(`${gameId}_x`).result, 'delivered')
+
+  // 比赛取消后到点：写明跳过原因（取消会作废提醒，这里模拟直接把比赛改成取消）
+  const { gameId: g2 } = await api('o', 'saveGame', {
+    clubId,
+    form: { date: '2026-10-11', time: '10:00', timezone: tz, venueId, signupOpens: { date: '2026-10-08', time: '20:00' } },
+  })
+  await api('x', 'setOpenReminder', { gameId: g2 })
+  fake.store.games.get(g2).status = 'cancelled'
+  fake.setNow(T.zonedToUtcMs('2026-10-08', '20:05', tz))
+  await tick()
+  assert.match(fake.store.reminders.get(`${g2}_x`).result, /skipped/)
+  config.OPEN_TEMPLATE_ID = saved
+})
