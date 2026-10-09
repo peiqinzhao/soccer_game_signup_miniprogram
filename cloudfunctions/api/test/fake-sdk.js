@@ -15,6 +15,7 @@ const command = {
   gte: (v) => cmd('gte', v),
   inc: (v) => cmd('inc', v),
   neq: (v) => cmd('neq', v),
+  and: (...conds) => cmd('and', conds),
   push: (v) => cmd('push', v),
   pull: (v) => cmd('pull', v),
   exists: (v) => cmd('exists', v),
@@ -29,6 +30,7 @@ function match(doc, where) {
       if (cond.__cmd === 'lte') return val <= cond.v
       if (cond.__cmd === 'gte') return val >= cond.v
       if (cond.__cmd === 'neq') return val !== cond.v
+      if (cond.__cmd === 'and') return cond.v.every((c) => match({ [k]: val }, { [k]: c }))
       if (cond.__cmd === 'exists') return (val !== undefined) === cond.v
     }
     return val === cond

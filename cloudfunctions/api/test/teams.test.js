@@ -266,3 +266,25 @@ test('check-in too far reports accuracy hint', async () => {
   const err = await apiErr(ids[1], 'checkin', { gameId, lat: VENUE.lat + 0.02, lng: VENUE.lng, accuracy: 3000 })
   assert.match(err, /精确位置/)
 })
+
+test('settlement resumes after an interrupted run', async () => {
+  const { gameId, ids } = await setup({ capacity: 6, teamSize: 3, teamCount: 2, players: 4 })
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  // 模拟上次结算超时：已标记 settledAt，只处理了一个人
+  const g = fake.store.games.get(gameId)
+  g.settledAt = startAt + 10 * MIN
+  fake.store.registrations.get(`${gameId}_${ids[0]}`).attendance = 'no_show'
+  fake.setNow(startAt + 15 * MIN)
+  fake.as('')
+  const r = await main({ Type: 'Timer', TriggerName: 'settle' })
+  assert.strictEqual(r.settled, 1)
+  const att = ids.map((id) => fake.store.registrations.get(`${gameId}_${id}`).attendance)
+  assert.deepStrictEqual(att, ['no_show', 'no_show', 'no_show', 'no_show'])
+  assert.strictEqual(fake.store.games.get(gameId).settleDone, true)
+  // 剩下 3 人补上了罚款（第一个人上次已处理完，不再重复处理）
+  const fines = [...fake.store.fines.values()].filter((f) => f.gameId === gameId)
+  assert.strictEqual(fines.length, 3)
+  // 再跑一次：不再处理
+  const r2 = await main({ Type: 'Timer', TriggerName: 'settle' })
+  assert.strictEqual(r2.settled, 0)
+})

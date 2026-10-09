@@ -1,6 +1,8 @@
 {
   "permissions": {
-    "openapi": ["subscribeMessage.send"]
+    "openapi": [
+      "subscribeMessage.send"
+    ]
   },
   "triggers": [
     {
@@ -8,5 +10,6 @@
       "type": "timer",
       "config": "0 */5 * * * * *"
     }
-  ]
+  ],
+  "timeout": 20
 }

@@ -26,42 +26,57 @@ async function createFine({ clubId, gameId, openid, kind, reason, amountCents, d
   return { _id: id, ...fine }
 }
 
+// 结算可以分多次完成：函数可能在中途超时被结束，下次定时器会接着处理还没判定出勤的人。
+// 全部处理完才标记 settleDone。出勤只给还没判定的人判，不会覆盖管理员的修正；罚款按 ID 去重，重复执行安全。
 async function settleGame(game) {
   const now = Date.now()
-  // 抢占：只有把 settledAt 从 0 改掉的那次调用负责结算
-  const claim = await db
-    .collection('games')
-    .where({ _id: game._id, status: 'active', settledAt: 0 })
-    .update({ data: { settledAt: now } })
-  if (claim.stats.updated !== 1) return false
+  if (!game.settledAt) {
+    await db
+      .collection('games')
+      .where({ _id: game._id, status: 'active', settledAt: 0 })
+      .update({ data: { settledAt: now } })
+  }
 
-  const regs = await listAll(db.collection('registrations').where({ gameId: game._id, status: 'registered' }))
+  const regs = await listAll(
+    db.collection('registrations').where({ gameId: game._id, status: 'registered', attendance: '' }),
+  )
   for (const reg of regs) {
     const attendance = rules.attendanceFor(reg.checkinAt, game)
+    // 先生成罚款再记出勤：中途被打断时，这个人下次还会被处理（罚款按 ID 去重）
+    if (attendance !== 'on_time' && game.fineCents > 0 && !rules.isLatePromotion(reg, game)) {
+      await createFine({
+        clubId: game.clubId,
+        gameId: game._id,
+        openid: reg.openid,
+        kind: 'attendance',
+        reason: attendance,
+        amountCents: game.fineCents,
+      })
+    }
     await db.collection('registrations').doc(reg._id).update({ data: { attendance } })
-    if (attendance === 'on_time' || game.fineCents <= 0 || rules.isLatePromotion(reg, game)) continue
-    await createFine({
-      clubId: game.clubId,
-      gameId: game._id,
-      openid: reg.openid,
-      kind: 'attendance',
-      reason: attendance,
-      amountCents: game.fineCents,
-    })
   }
+  await db.collection('games').doc(game._id).update({ data: { settleDone: true } })
   return true
 }
 
 async function maybeSettle(game) {
-  if (game.status === 'active' && !game.settledAt && Date.now() >= game.cutoffAt) {
+  if (game.status === 'active' && !game.settleDone && Date.now() >= game.cutoffAt) {
     return settleGame(game)
   }
   return false
 }
 
+// 只看最近 7 天截止的比赛（更早的早已处理完）
+const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000
+
 async function settleDue() {
+  const now = Date.now()
   const games = await listAll(
-    db.collection('games').where({ status: 'active', settledAt: 0, cutoffAt: _.lte(Date.now()) }),
+    db.collection('games').where({
+      status: 'active',
+      settleDone: _.neq(true),
+      cutoffAt: _.and(_.lte(now), _.gte(now - LOOKBACK_MS)),
+    }),
     100,
   )
   for (const g of games) {
