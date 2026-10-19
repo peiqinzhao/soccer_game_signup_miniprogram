@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   defaultTags: [], // 新发起比赛时默认带上的标签
   checkinEnabled: true, // 新发起比赛默认开启到场签到
   finesEnabled: true, // 关闭后整个球队不产生任何罚款、不拦截报名
+  matchStatsEnabled: false, // 记录进球/助攻（足球等用；网球、羽毛球等可不开）
   // 自评等级：off 不使用；labels 文字档位；numeric 数字等级（如网球 NTRP 1.0–7.0，间隔 0.5）
   rating: { mode: 'off', labels: ['入门', '中级', '高手'], min: 1, max: 7, step: 0.5 },
 }

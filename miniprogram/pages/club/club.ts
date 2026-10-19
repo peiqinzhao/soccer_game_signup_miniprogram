@@ -1,5 +1,4 @@
 import { run } from '../../utils/api'
-import { setFlash } from '../../utils/flash'
 import { getSession } from '../../utils/session'
 import { ClubDetail } from '../../utils/types'
 
@@ -44,15 +43,10 @@ Page({
   go(e: WechatMiniprogram.TouchEvent) {
     const id = this.data.id
     const to = e.currentTarget.dataset.to
-    if (to === 'stats') {
-      // switchTab 不能带参数，用 flash 告诉数据榜显示哪个球队
-      setFlash('statsClubId', id)
-      wx.switchTab({ url: '/pages/stats/stats' })
-      return
-    }
     const urls: Record<string, string> = {
       newGame: `/pages/game-edit/game-edit?clubId=${id}`,
       fines: `/pages/fines/fines?clubId=${id}`,
+      stats: `/pages/stats/stats?clubId=${id}`,
       ledger: `/pages/ledger/ledger?clubId=${id}`,
       settings: `/pages/club-edit/club-edit?clubId=${id}`,
       newVenue: `/pages/venue/venue?clubId=${id}`,

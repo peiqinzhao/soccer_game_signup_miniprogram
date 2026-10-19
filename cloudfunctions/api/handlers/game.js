@@ -382,6 +382,7 @@ async function getGame({ openid, gameId }) {
       venmo: club.venmo,
       finesEnabled: club.settings.finesEnabled !== false,
       levelOptions: rules.levelOptions(club.settings.rating),
+      matchStatsEnabled: !!club.settings.matchStatsEnabled,
     },
     registered: pick('registered', 'spotAt'),
     waitlist: pick('waitlist', 'waitlistAt'),
@@ -848,6 +849,8 @@ async function setRegNote({ openid, gameId, note, target }) {
 async function setMatchStats({ openid, gameId, goals, assists, target }) {
   const game = await mustGet('games', gameId, '比赛')
   if (game.status !== 'active') throw new UserError('比赛已取消')
+  const club = await mustGetClub(game.clubId)
+  if (!club.settings.matchStatsEnabled) throw new UserError('本球队没有开启进球/助攻记录')
   const who = target || openid
   let isAdmin = false
   if (who !== openid) {

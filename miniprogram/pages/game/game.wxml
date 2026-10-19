@@ -150,7 +150,7 @@
       <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
     </view>
     <view wx:if="{{notifyText}}" class="sub small mt">{{notifyText}}</view>
-    <view class="hint">点名单里的人可以：改进球/助攻、代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已取消」里截止后才取消的人可以罚“取消未转发”</view>
+    <view class="hint">点名单里的人可以：<text wx:if="{{d.club.matchStatsEnabled}}">改进球/助攻、</text>代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已取消」里截止后才取消的人可以罚“取消未转发”</view>
   </view>
 
   <!-- 名单 -->
@@ -178,8 +178,8 @@
             <text wx:if="{{item.isAdmin}}" class="tag tag-admin">管理员</text>
             <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
             <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
-            <text wx:if="{{item.goals}}" class="tag tag-ok">⚽ {{item.goals}}球</text>
-            <text wx:if="{{item.assists}}" class="tag tag-ok">👟 {{item.assists}}助</text>
+            <text wx:if="{{d.club.matchStatsEnabled && item.goals}}" class="tag tag-ok">⚽ {{item.goals}}球</text>
+            <text wx:if="{{d.club.matchStatsEnabled && item.assists}}" class="tag tag-ok">👟 {{item.assists}}助</text>
             <text wx:if="{{item.fineText}}" class="tag {{item.fineClass}}">{{item.fineText}}</text>
             <text wx:for="{{item.tags}}" wx:for-item="t" wx:key="*this" class="tag tag-ok">{{t}}</text>
           </view>

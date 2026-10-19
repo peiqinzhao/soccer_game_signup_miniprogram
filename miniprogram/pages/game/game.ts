@@ -207,7 +207,7 @@ Page({
     const statParts = (g.tags || []).map(
       (tag) => `${tag} ${d.registered.filter((r) => (r.tags || []).includes(tag)).length}/${d.registered.length}`,
     )
-    if (totalGoals || totalAssists) statParts.push(`本场 ${totalGoals}球 ${totalAssists}助`)
+    if (d.club.matchStatsEnabled && (totalGoals || totalAssists)) statParts.push(`本场 ${totalGoals}球 ${totalAssists}助`)
     this.setData({
       loaded: true,
       d,
@@ -237,7 +237,9 @@ Page({
       levelPicker: (d.club.levelOptions || []).length ? ['不填', ...(d.club.levelOptions || [])] : [],
       myLevel: d.me.level || '',
       canRecordMyStats:
+        !!d.club.matchStatsEnabled &&
         myStatus === 'registered' &&
+        t >= g.startAt &&
         g.status === 'active' &&
         (!!reg!.checkinAt || reg!.attendance === 'on_time' || reg!.attendance === 'late' || g.checkinEnabled === false),
       myGoals: reg ? reg.goals || 0 : 0,
@@ -688,7 +690,9 @@ Page({
     if (!d) return
     const g = d.game
     const withTags = (r: RegView) => {
-      const stats = [r.goals ? `${r.goals}球` : '', r.assists ? `${r.assists}助` : ''].filter(Boolean).join(' ')
+      const stats = d.club.matchStatsEnabled
+        ? [r.goals ? `${r.goals}球` : '', r.assists ? `${r.assists}助` : ''].filter(Boolean).join(' ')
+        : ''
       return (
         r.name +
         (stats ? ` (${stats})` : '') +
@@ -825,7 +829,7 @@ Page({
         items.push({ label: '代签到（记为准时）', run: setAtt('on_time') })
       }
     }
-    if (status === 'registered' && row) {
+    if (status === 'registered' && row && d.club.matchStatsEnabled && now() >= d.game.startAt) {
       items.push({
         label: `进球 / 助攻（${row.goals || 0}球 ${row.assists || 0}助）…`,
         run: async () => {

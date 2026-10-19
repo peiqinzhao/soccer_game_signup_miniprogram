@@ -27,6 +27,7 @@ Page({
     defaultTagsText: '',
     checkinEnabled: true,
     finesEnabled: true,
+    matchStatsEnabled: false,
     ratingModes: ['不使用', '文字档位（如 入门/中级/高手）', '数字等级（如 网球 1.0–7.0）'],
     ratingIndex: 0,
     ratingLabels: '入门，中级，高手',
@@ -67,6 +68,7 @@ Page({
       defaultTagsText: (s.defaultTags || []).join('，'),
       checkinEnabled: s.checkinEnabled !== false,
       finesEnabled: s.finesEnabled !== false,
+      matchStatsEnabled: !!s.matchStatsEnabled,
       ratingIndex: ['off', 'labels', 'numeric'].indexOf((s.rating && s.rating.mode) || 'off'),
       ratingLabels: s.rating ? s.rating.labels.join('，') : '入门，中级，高手',
       ratingMin: s.rating ? String(s.rating.min) : '1',
@@ -146,6 +148,7 @@ Page({
       defaultTags: d.defaultTagsText,
       checkinEnabled: d.checkinEnabled,
       finesEnabled: d.finesEnabled,
+      matchStatsEnabled: d.matchStatsEnabled,
       rating: {
         mode: ['off', 'labels', 'numeric'][d.ratingIndex],
         labels: d.ratingLabels,

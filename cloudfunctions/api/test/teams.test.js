@@ -429,6 +429,13 @@ test('my stats and the club-level fines switch', async () => {
 test('match goals and assists: player self-record after checkin, admin edit, and leaderboard', async () => {
   const { gameId, clubId, ids, checkin } = await setup({ capacity: 6, teamSize: 3, teamCount: 2, players: 3 })
   const [o, a, b] = ids
+  // 默认关闭
+  fake.setNow(T.zonedToUtcMs('2026-10-04', '10:05', tz))
+  assert.match(await apiErr(o, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /没有开启/)
+  assert.strictEqual((await api(o, 'leaderboard', { clubId })).matchStatsEnabled, false)
+  fake.setNow(T.zonedToUtcMs('2026-10-04', '09:40', tz)) // 回到开赛前 20 分钟（签到窗口内）
+  await api(o, 'updateClub', { clubId, settings: { matchStatsEnabled: true } })
+  assert.strictEqual((await api(o, 'getGame', { gameId })).club.matchStatsEnabled, true)
 
   // 开赛前谁都不能填
   assert.match(await apiErr(a, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /比赛开始后/)

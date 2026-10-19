@@ -17,6 +17,11 @@
     <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
       <view class="field"><text class="field-label">默认时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
     </picker>
+    <view class="field">
+      <text class="field-label">记录进球 / 助攻</text>
+      <switch checked="{{matchStatsEnabled}}" data-key="matchStatsEnabled" bindchange="onSwitch" color="#111" />
+    </view>
+    <view class="hint">开启后球员签到后可记录本场进球和助攻，球队数据榜显示射手榜、助攻榜；不开只显示出场榜</view>
     <picker range="{{ratingModes}}" value="{{ratingIndex}}" data-key="ratingIndex" bindchange="onPick">
       <view class="field"><text class="field-label">自评等级</text><text class="field-value small">{{ratingModes[ratingIndex]}} ›</text></view>
     </picker>

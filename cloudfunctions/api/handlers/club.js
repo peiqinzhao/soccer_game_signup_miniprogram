@@ -44,6 +44,7 @@ function cleanSettings(input = {}) {
   }
   if (input.checkinEnabled !== undefined) s.checkinEnabled = !!input.checkinEnabled
   if (input.finesEnabled !== undefined) s.finesEnabled = !!input.finesEnabled
+  if (input.matchStatsEnabled !== undefined) s.matchStatsEnabled = !!input.matchStatsEnabled
   if (input.rating !== undefined) {
     try {
       s.rating = cleanRating(input.rating)

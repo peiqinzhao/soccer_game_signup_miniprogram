@@ -47,6 +47,7 @@ async function myStats({ openid }) {
         clubName: c.name,
         finesEnabled: !c.settings || c.settings.finesEnabled !== false,
         levelOptions: levelOptions(c.settings && c.settings.rating),
+        matchStatsEnabled: !!(c.settings && c.settings.matchStatsEnabled),
         level: validLevel(c.settings && c.settings.rating, (members.find((m) => m.clubId === c._id) || {}).level),
         goals,
         assists,
@@ -138,6 +139,7 @@ async function leaderboard({ openid, clubId }) {
     clubs: clubs.map((c) => ({ clubId: c._id, clubName: c.name })),
     clubId: cid,
     clubName: targetClub.name,
+    matchStatsEnabled: !!(targetClub.settings && targetClub.settings.matchStatsEnabled),
     rows,
   }
 }

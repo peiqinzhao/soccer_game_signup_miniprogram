@@ -1,6 +1,5 @@
 import { run } from '../../utils/api'
 import { getSession } from '../../utils/session'
-import { takeFlash } from '../../utils/flash'
 import { LeaderboardData, LeaderboardRow } from '../../utils/types'
 
 type SortKey = 'goals' | 'assists' | 'games'
@@ -30,6 +29,7 @@ Page({
     totalAssists: 0,
     maxGames: 0,
     myOpenid: '',
+    matchStats: true, // 本球队是否记录进球/助攻；否则只显示出场榜
   },
 
   onLoad(q: Record<string, string | undefined>) {
@@ -39,8 +39,6 @@ Page({
   },
 
   onShow() {
-    const clubId = takeFlash<string>('statsClubId')
-    if (clubId) this.setData({ clubId })
     this.load()
   },
 
@@ -56,7 +54,9 @@ Page({
     ])
     if (!res) return
     const rawRows = res.rows || []
-    const rows = sortRows(rawRows, this.data.sortBy)
+    const matchStats = !!res.matchStatsEnabled
+    const sortBy: SortKey = matchStats ? this.data.sortBy : 'games'
+    const rows = sortRows(rawRows, sortBy)
     const totalGoals = rawRows.reduce((sum, r) => sum + (r.goals || 0), 0)
     const totalAssists = rawRows.reduce((sum, r) => sum + (r.assists || 0), 0)
     const maxGames = rawRows.reduce((max, r) => Math.max(max, r.games || 0), 0)
@@ -71,7 +71,10 @@ Page({
       totalAssists,
       maxGames,
       myOpenid: s ? s.openid : '',
+      matchStats,
+      sortBy,
     })
+    wx.setNavigationBarTitle({ title: `${res.clubName || ''} 数据榜` })
   },
 
   switchClub(e: WechatMiniprogram.TouchEvent) {

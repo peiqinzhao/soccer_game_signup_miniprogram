@@ -24,6 +24,7 @@ export interface ClubSettings {
   defaultTags?: string[]
   checkinEnabled?: boolean
   finesEnabled?: boolean
+  matchStatsEnabled?: boolean
   rating?: RatingSettings
 }
 
@@ -142,7 +143,14 @@ export interface GameDetail {
   notifyStats: NotifyStats | null
   teams: TeamsView | null
   game: Game
-  club: { _id: string; name: string; venmo: string; finesEnabled?: boolean; levelOptions?: string[] }
+  club: {
+    _id: string
+    name: string
+    venmo: string
+    finesEnabled?: boolean
+    levelOptions?: string[]
+    matchStatsEnabled?: boolean
+  }
   registered: RegView[]
   waitlist: RegView[]
   cancelled: RegView[]
@@ -256,6 +264,7 @@ export interface MyClubStats {
   clubId: string
   clubName: string
   finesEnabled: boolean
+  matchStatsEnabled?: boolean
   levelOptions?: string[]
   level?: string
   goals?: number
@@ -277,5 +286,6 @@ export interface LeaderboardData {
   clubs: { clubId: string; clubName: string }[]
   clubId: string
   clubName: string
+  matchStatsEnabled?: boolean
   rows: LeaderboardRow[]
 }

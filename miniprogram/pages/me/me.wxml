@@ -30,7 +30,7 @@
       </view>
     </picker>
     <view class="small">⚽ {{item.attendanceText}}</view>
-    <view class="small mt">🏆 {{item.goalsText}}</view>
+    <view wx:if="{{item.matchStatsEnabled}}" class="small mt">🏆 {{item.goalsText}}</view>
     <block wx:if="{{item.finesEnabled}}">
       <view class="small mt" data-id="{{item.clubId}}" bindtap="openFines">💰 {{item.finesText}} <text class="sub">›</text></view>
       <view wx:if="{{item.moneyText}}" class="sub small">{{item.moneyText}}</view>
