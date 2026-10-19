@@ -18,6 +18,8 @@ const DEFAULT_SETTINGS = {
   defaultTags: [], // 新发起比赛时默认带上的标签
   checkinEnabled: true, // 新发起比赛默认开启到场签到
   finesEnabled: true, // 关闭后整个球队不产生任何罚款、不拦截报名
+  // 自评等级：off 不使用；labels 文字档位；numeric 数字等级（如网球 NTRP 1.0–7.0，间隔 0.5）
+  rating: { mode: 'off', labels: ['入门', '中级', '高手'], min: 1, max: 7, step: 0.5 },
 }
 
 // 比赛自选标签：管理员定义（如“已付款”），队员自己打上或取消
@@ -34,6 +36,47 @@ function cleanTags(input) {
   }
   if (tags.length > MAX_TAGS) throw new Error(`最多 ${MAX_TAGS} 个标签`)
   return tags
+}
+
+// ---------- 自评等级 ----------
+function stepDecimals(step) {
+  const t = String(step)
+  return t.includes('.') ? t.split('.')[1].length : 0
+}
+
+// 校验并整理球队的等级设置；不合法时抛出 Error（调用方转成 UserError）
+function cleanRating(input) {
+  const r = { ...DEFAULT_SETTINGS.rating, ...(input || {}) }
+  if (!['off', 'labels', 'numeric'].includes(r.mode)) throw new Error('等级方式无效')
+  const labels = Array.isArray(r.labels) ? r.labels : String(r.labels || '').split(/[,，、\s]+/)
+  const cleaned = [...new Set(labels.map((x) => String(x).trim()).filter(Boolean))]
+  if (r.mode === 'labels') {
+    if (cleaned.length < 2 || cleaned.length > 6) throw new Error('文字档位需要 2–6 个')
+    if (cleaned.some((x) => x.length > 6)) throw new Error('每个档位最多 6 个字')
+  }
+  const min = Number(r.min)
+  const max = Number(r.max)
+  const step = Number(r.step)
+  if (r.mode === 'numeric') {
+    if (![min, max, step].every(Number.isFinite) || step <= 0 || min >= max) throw new Error('数字等级的范围或间隔无效')
+    if ((max - min) / step > 100) throw new Error('数字等级的档位太多（最多 100 档）')
+  }
+  return { mode: r.mode, labels: cleaned.length ? cleaned : DEFAULT_SETTINGS.rating.labels, min, max, step }
+}
+
+// 按球队设置列出所有可选等级（显示用字符串）
+function levelOptions(rating) {
+  if (!rating || rating.mode === 'off') return []
+  if (rating.mode === 'labels') return rating.labels
+  const d = stepDecimals(rating.step)
+  const out = []
+  for (let i = 0; rating.min + i * rating.step <= rating.max + 1e-9; i++) out.push((rating.min + i * rating.step).toFixed(d))
+  return out
+}
+
+// 当前设置下这个等级还有效就返回它，否则返回 ''（球队改了等级方式后旧值不再显示）
+function validLevel(rating, level) {
+  return level && levelOptions(rating).includes(level) ? level : ''
 }
 
 const FINE_REASONS = {
@@ -111,6 +154,9 @@ module.exports = {
   DEFAULT_SETTINGS,
   FINE_REASONS,
   cleanTags,
+  cleanRating,
+  levelOptions,
+  validLevel,
   cancelPhase,
   checkinOpensAt,
   canCheckinAt,

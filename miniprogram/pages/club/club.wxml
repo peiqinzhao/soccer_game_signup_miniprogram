@@ -16,6 +16,12 @@
     <view class="field" data-to="stats" bindtap="go">
       <text>数据总榜（进球 / 助攻）</text><text class="sub">›</text>
     </view>
+    <picker wx:if="{{levelPicker.length}}" range="{{levelPicker}}" bindchange="onPickLevel">
+      <view class="field">
+        <text>我的水平</text>
+        <text class="sub">{{c.me.level || '未填写'}} ›</text>
+      </view>
+    </picker>
     <view class="field" data-to="ledger" bindtap="go">
       <text>足球基金</text><text class="sub">›</text>
     </view>
@@ -46,6 +52,7 @@
       <view class="flex1" style="margin-left:20rpx;">
         <view class="row">
           <text>{{item.name}}</text>
+          <text wx:if="{{item.level}}" class="tag tag-level">{{item.level}}</text>
           <text wx:if="{{item.role !== 'member'}}" class="tag">{{roleText[item.role]}}</text>
           <text wx:if="{{item.openid === myOpenid}}" class="tag">我</text>
         </view>

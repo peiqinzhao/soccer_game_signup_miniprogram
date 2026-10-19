@@ -475,3 +475,24 @@ test('listEvery reads past the 1000-row page limit', async () => {
   assert.strictEqual((await listAll(q())).length, 1000)
   assert.strictEqual((await listEvery(q())).length, 2345)
 })
+
+test('self-rated levels: club config, per-club value, shown on roster, hidden when config changes', async () => {
+  const { gameId, clubId, ids } = await setup({ capacity: 6, teamSize: 3, teamCount: 2, players: 2 })
+  const [o, a] = ids
+  assert.match(await apiErr(a, 'setMyLevel', { clubId, level: '中级' }), /没有开启/)
+  await api(o, 'updateClub', { clubId, settings: { rating: { mode: 'numeric', min: 1, max: 7, step: 0.5 } } })
+  assert.match(await apiErr(a, 'setMyLevel', { clubId, level: '3.3' }), /范围/)
+  assert.deepStrictEqual(await api(a, 'setMyLevel', { clubId, level: '3.5' }), { level: '3.5' })
+  let g = await api(o, 'getGame', { gameId })
+  assert.strictEqual(g.registered.find((r) => r.openid === a).level, '3.5')
+  assert.strictEqual(g.club.levelOptions.length, 13)
+  assert.strictEqual((await api(a, 'getGame', { gameId })).me.level, '3.5')
+  assert.strictEqual((await api(o, 'getClub', { clubId })).members.find((m) => m.openid === a).level, '3.5')
+  // 改成文字档位：旧的数字等级不再显示
+  await api(o, 'updateClub', { clubId, settings: { rating: { mode: 'labels', labels: '入门,中级,高手' } } })
+  g = await api(o, 'getGame', { gameId })
+  assert.strictEqual(g.registered.find((r) => r.openid === a).level, '')
+  assert.deepStrictEqual(g.club.levelOptions, ['入门', '中级', '高手'])
+  await api(a, 'setMyLevel', { clubId, level: '' }) // 清除
+  assert.match(await apiErr(o, 'updateClub', { clubId, settings: { rating: { mode: 'labels', labels: 'x' } } }), /2–6/)
+})

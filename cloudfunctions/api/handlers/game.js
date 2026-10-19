@@ -318,6 +318,7 @@ async function getGame({ openid, gameId }) {
       avatar: p.avatar,
       isNew: !!p.joinedAt && now - p.joinedAt < NEW_MEMBER_MS,
       isAdmin: isAdminRole(p.role),
+      level: rules.validLevel(club.settings.rating, p.level),
       inviterName: r.inviter ? (profiles[r.inviter] || {}).name || '' : '',
       status: r.status,
       signedAt: r.signedAt,
@@ -372,10 +373,16 @@ async function getGame({ openid, gameId }) {
   return {
     fines,
     notifyStats,
-    teams: teams.teamsView(game, regs, profiles, openid),
+    teams: teams.teamsView(game, regs, profiles, openid, club.settings.rating),
     serverNow: now,
     game: publicGame(game),
-    club: { _id: club._id, name: club.name, venmo: club.venmo, finesEnabled: club.settings.finesEnabled !== false },
+    club: {
+      _id: club._id,
+      name: club.name,
+      venmo: club.venmo,
+      finesEnabled: club.settings.finesEnabled !== false,
+      levelOptions: rules.levelOptions(club.settings.rating),
+    },
     registered: pick('registered', 'spotAt'),
     waitlist: pick('waitlist', 'waitlistAt'),
     cancelled: pick('cancelled', 'cancelledAt'),
@@ -387,6 +394,7 @@ async function getGame({ openid, gameId }) {
       unpaidCents: member && club.settings.finesEnabled !== false ? await unpaidCents(game.clubId, openid) : 0,
       checkinOpensAt: rules.checkinOpensAt(game),
       openReminder: game.signupOpensAt > now ? await remind.hasOpenReminder(gameId, openid) : false,
+      level: member ? rules.validLevel(club.settings.rating, member.level) : '',
     },
   }
 }

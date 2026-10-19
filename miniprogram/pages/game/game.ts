@@ -144,6 +144,8 @@ Page({
     tagStats: '', // 如“已付款 18/24”
     myTags: [] as { tag: string; on: boolean }[],
     myNote: '',
+    levelPicker: [] as string[], // ['不填', ...可选等级]
+    myLevel: '',
     canRecordMyStats: false,
     myGoals: 0,
     myAssists: 0,
@@ -232,6 +234,8 @@ Page({
         reg && reg.status === 'registered' ? (g.tags || []).map((tag) => ({ tag, on: (reg.tags || []).includes(tag) })) : [],
       myCheckinText: reg && reg.checkinAt ? fmtTimeSec(reg.checkinAt) : '',
       myNote: reg ? reg.note || '' : '',
+      levelPicker: (d.club.levelOptions || []).length ? ['不填', ...(d.club.levelOptions || [])] : [],
+      myLevel: d.me.level || '',
       canRecordMyStats:
         myStatus === 'registered' &&
         g.status === 'active' &&
@@ -561,6 +565,23 @@ Page({
     if (!r.confirm) return
     const tags = (r.content || '').split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean)
     if (await run('setGameTags', { gameId: this.data.id, tags }, '保存中')) this.load()
+  },
+
+  // ---------- 自评等级 ----------
+
+  async onPickMyLevel(e: WechatMiniprogram.PickerChange) {
+    const i = Number(e.detail.value)
+    const level = i === 0 ? '' : this.data.levelPicker[i]
+    const d = this.data.d!
+    const res = await run<{ level: string }>('setMyLevel', { clubId: d.game.clubId, level }, '保存中')
+    if (!res) return
+    const patch = (x: RegView): RegView => (x.openid === d.me.openid ? { ...x, level: res.level } : x)
+    this.render({
+      ...d,
+      registered: d.registered.map(patch),
+      waitlist: d.waitlist.map(patch),
+      me: { ...d.me, level: res.level, reg: d.me.reg ? patch(d.me.reg) : null },
+    })
   },
 
   // ---------- 报名备注 ----------

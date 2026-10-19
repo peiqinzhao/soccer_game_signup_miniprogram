@@ -80,3 +80,17 @@ test('check-in code rotates per minute and accepts previous minute', () => {
 test('shiftDate', () => {
   assert.strictEqual(T.shiftDate('2026-09-27', 7), '2026-10-04')
 })
+
+test('rating settings and level options', () => {
+  assert.deepStrictEqual(rules.levelOptions(rules.cleanRating({ mode: 'numeric', min: 1, max: 7, step: 0.5 })).slice(0, 3), ['1.0', '1.5', '2.0'])
+  assert.strictEqual(rules.levelOptions(rules.cleanRating({ mode: 'numeric', min: 1, max: 7, step: 0.5 })).length, 13)
+  assert.deepStrictEqual(rules.levelOptions(rules.cleanRating({ mode: 'numeric', min: 1, max: 10, step: 1 })).slice(-2), ['9', '10'])
+  assert.deepStrictEqual(rules.levelOptions(rules.cleanRating({ mode: 'labels', labels: '入门，中级 高手' })), ['入门', '中级', '高手'])
+  assert.deepStrictEqual(rules.levelOptions(rules.cleanRating({ mode: 'off' })), [])
+  assert.throws(() => rules.cleanRating({ mode: 'labels', labels: '只有一个' }), /2–6/)
+  assert.throws(() => rules.cleanRating({ mode: 'numeric', min: 5, max: 1, step: 1 }), /无效/)
+  assert.throws(() => rules.cleanRating({ mode: 'numeric', min: 0, max: 100, step: 0.1 }), /太多/)
+  const tennis = rules.cleanRating({ mode: 'numeric', min: 1, max: 7, step: 0.5 })
+  assert.strictEqual(rules.validLevel(tennis, '3.5'), '3.5')
+  assert.strictEqual(rules.validLevel(tennis, '3.3'), '')
+})

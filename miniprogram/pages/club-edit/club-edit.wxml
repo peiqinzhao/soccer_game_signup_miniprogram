@@ -17,6 +17,26 @@
     <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
       <view class="field"><text class="field-label">默认时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
     </picker>
+    <picker range="{{ratingModes}}" value="{{ratingIndex}}" data-key="ratingIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">自评等级</text><text class="field-value small">{{ratingModes[ratingIndex]}} ›</text></view>
+    </picker>
+    <view wx:if="{{ratingIndex === 1}}" class="field">
+      <text class="field-label">档位（逗号分隔）</text>
+      <input class="field-value" value="{{ratingLabels}}" data-key="ratingLabels" bindinput="onInput" placeholder="入门，中级，高手" />
+    </view>
+    <block wx:if="{{ratingIndex === 2}}">
+      <view class="field">
+        <text class="field-label">最低 / 最高 / 间隔</text>
+        <view class="row">
+          <input type="digit" value="{{ratingMin}}" data-key="ratingMin" bindinput="onInput" style="width:90rpx; text-align:center;" />
+          <text class="sub">–</text>
+          <input type="digit" value="{{ratingMax}}" data-key="ratingMax" bindinput="onInput" style="width:90rpx; text-align:center;" />
+          <text class="sub">每</text>
+          <input type="digit" value="{{ratingStep}}" data-key="ratingStep" bindinput="onInput" style="width:90rpx; text-align:center;" />
+        </view>
+      </view>
+    </block>
+    <view wx:if="{{ratingIndex > 0}}" class="hint">成员可以在球队页或比赛页给自己选等级，名单上会显示，方便看出水平是否均衡。例：网球 1.0–7.0 每 0.5；羽毛球 1–10 每 1</view>
     <view class="field">
       <text class="field-label">启用罚款</text>
       <switch checked="{{finesEnabled}}" data-key="finesEnabled" bindchange="onSwitch" color="#111" />

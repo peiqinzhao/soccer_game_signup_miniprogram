@@ -11,6 +11,7 @@ Page({
     c: null as ClubDetail | null,
     roleText: ROLE_TEXT,
     myOpenid: '',
+    levelPicker: [] as string[], // ['不填', ...可选等级]
   },
 
   onLoad(q: Record<string, string | undefined>) {
@@ -32,7 +33,11 @@ Page({
       getSession().catch(() => null),
     ])
     if (!c) return
-    this.setData({ c, myOpenid: s ? s.openid : '' })
+    this.setData({
+      c,
+      myOpenid: s ? s.openid : '',
+      levelPicker: (c.levelOptions || []).length ? ['不填', ...(c.levelOptions || [])] : [],
+    })
     wx.setNavigationBarTitle({ title: c.club.name })
   },
 
@@ -53,6 +58,12 @@ Page({
       newVenue: `/pages/venue/venue?clubId=${id}`,
     }
     wx.navigateTo({ url: urls[to] })
+  },
+
+  async onPickLevel(e: WechatMiniprogram.PickerChange) {
+    const i = Number(e.detail.value)
+    const level = i === 0 ? '' : this.data.levelPicker[i]
+    if (await run('setMyLevel', { clubId: this.data.id, level }, '保存中')) this.load()
   },
 
   editVenue(e: WechatMiniprogram.TouchEvent) {

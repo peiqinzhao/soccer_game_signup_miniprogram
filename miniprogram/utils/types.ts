@@ -24,6 +24,15 @@ export interface ClubSettings {
   defaultTags?: string[]
   checkinEnabled?: boolean
   finesEnabled?: boolean
+  rating?: RatingSettings
+}
+
+export interface RatingSettings {
+  mode: 'off' | 'labels' | 'numeric'
+  labels: string[]
+  min: number
+  max: number
+  step: number
 }
 
 export interface Game {
@@ -72,6 +81,7 @@ export interface RegView {
   avatar: string
   isNew: boolean
   isAdmin?: boolean
+  level?: string
   inviterName: string
   status: 'registered' | 'waitlist' | 'cancelled'
   signedAt: number
@@ -101,6 +111,7 @@ export interface GameFine {
 export interface TeamMember {
   openid: string
   name: string
+  level?: string
   avatar: string
   gk: number
   late: boolean
@@ -131,7 +142,7 @@ export interface GameDetail {
   notifyStats: NotifyStats | null
   teams: TeamsView | null
   game: Game
-  club: { _id: string; name: string; venmo: string; finesEnabled?: boolean }
+  club: { _id: string; name: string; venmo: string; finesEnabled?: boolean; levelOptions?: string[] }
   registered: RegView[]
   waitlist: RegView[]
   cancelled: RegView[]
@@ -143,6 +154,7 @@ export interface GameDetail {
     unpaidCents: number
     checkinOpensAt: number
     openReminder: boolean
+    level?: string
   }
 }
 
@@ -170,6 +182,7 @@ export interface GameForm {
 export interface MemberView {
   openid: string
   name: string
+  level?: string
   role: 'owner' | 'admin' | 'member'
   avatar: string
   inviterName: string
@@ -178,7 +191,8 @@ export interface MemberView {
 
 export interface ClubDetail {
   club: { _id: string; name: string; venmo: string; settings: ClubSettings; ownerOpenid: string }
-  me: { role: string; name: string; isAdmin: boolean; isOwner: boolean }
+  me: { role: string; name: string; isAdmin: boolean; isOwner: boolean; level?: string }
+  levelOptions?: string[]
   members: MemberView[]
   venues: Venue[]
   pendingFines: number

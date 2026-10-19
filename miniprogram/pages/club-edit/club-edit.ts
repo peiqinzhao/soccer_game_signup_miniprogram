@@ -27,6 +27,12 @@ Page({
     defaultTagsText: '',
     checkinEnabled: true,
     finesEnabled: true,
+    ratingModes: ['不使用', '文字档位（如 入门/中级/高手）', '数字等级（如 网球 1.0–7.0）'],
+    ratingIndex: 0,
+    ratingLabels: '入门，中级，高手',
+    ratingMin: '1',
+    ratingMax: '7',
+    ratingStep: '0.5',
     tzLabels: TIMEZONES.map((t) => t.label),
     tzIndex: 0,
     numFields: NUM_FIELDS,
@@ -61,6 +67,11 @@ Page({
       defaultTagsText: (s.defaultTags || []).join('，'),
       checkinEnabled: s.checkinEnabled !== false,
       finesEnabled: s.finesEnabled !== false,
+      ratingIndex: ['off', 'labels', 'numeric'].indexOf((s.rating && s.rating.mode) || 'off'),
+      ratingLabels: s.rating ? s.rating.labels.join('，') : '入门，中级，高手',
+      ratingMin: s.rating ? String(s.rating.min) : '1',
+      ratingMax: s.rating ? String(s.rating.max) : '7',
+      ratingStep: s.rating ? String(s.rating.step) : '0.5',
       tzLabels: TIMEZONES.map((t) => t.label),
       tzIndex,
       nums,
@@ -115,7 +126,7 @@ Page({
 
   onPick(e: WechatMiniprogram.PickerChange) {
     const key = e.currentTarget.dataset.key as string
-    this.setData({ [key]: key === 'tzIndex' ? Number(e.detail.value) : e.detail.value })
+    this.setData({ [key]: key.endsWith('Index') ? Number(e.detail.value) : e.detail.value })
   },
 
   async save() {
@@ -135,6 +146,13 @@ Page({
       defaultTags: d.defaultTagsText,
       checkinEnabled: d.checkinEnabled,
       finesEnabled: d.finesEnabled,
+      rating: {
+        mode: ['off', 'labels', 'numeric'][d.ratingIndex],
+        labels: d.ratingLabels,
+        min: Number(d.ratingMin),
+        max: Number(d.ratingMax),
+        step: Number(d.ratingStep),
+      },
     }
     for (const { key } of NUM_FIELDS) settings[key] = Number(d.nums[key])
     const ok = await run('updateClub', { clubId: d.clubId, name: d.name, venmo: d.venmo, settings }, '保存中')

@@ -13,7 +13,7 @@ const {
   fileUrls,
   mustGetClub,
 } = require('../lib/db')
-const { DEFAULT_SETTINGS, cleanTags } = require('../lib/rules')
+const { DEFAULT_SETTINGS, cleanTags, cleanRating, validLevel, levelOptions } = require('../lib/rules')
 const { isValidTimeZone } = require('../lib/time')
 
 function cleanSettings(input = {}) {
@@ -44,6 +44,13 @@ function cleanSettings(input = {}) {
   }
   if (input.checkinEnabled !== undefined) s.checkinEnabled = !!input.checkinEnabled
   if (input.finesEnabled !== undefined) s.finesEnabled = !!input.finesEnabled
+  if (input.rating !== undefined) {
+    try {
+      s.rating = cleanRating(input.rating)
+    } catch (e) {
+      throw new UserError(e.message)
+    }
+  }
   if (input.defaultTags !== undefined) {
     try {
       s.defaultTags = cleanTags(input.defaultTags)
@@ -119,13 +126,21 @@ async function getClub({ openid, clubId }) {
   }
   return {
     club: { _id: club._id, name: club.name, venmo: club.venmo, settings: club.settings, ownerOpenid: club.ownerOpenid },
-    me: { role: me.role, name: me.name, isAdmin, isOwner: me.role === 'owner' },
+    me: {
+      role: me.role,
+      name: me.name,
+      isAdmin,
+      isOwner: me.role === 'owner',
+      level: validLevel(club.settings.rating, me.level),
+    },
+    levelOptions: levelOptions(club.settings.rating),
     members: members.map((m) => ({
       openid: m.openid,
       name: m.name,
       role: m.role,
       avatar: avatars[m.openid] || '',
       inviterName: m.inviter ? names[m.inviter] || '' : '',
+      level: validLevel(club.settings.rating, m.level),
       joinedAt: m.joinedAt,
     })),
     venues,
@@ -289,8 +304,21 @@ async function archiveClub({ openid, clubId, confirmName }) {
   return {}
 }
 
+// 成员给自己选等级（每个球队单独一个）；传空表示清除
+async function setMyLevel({ openid, clubId, level }) {
+  const club = await mustGetClub(clubId)
+  await requireMember(clubId, openid)
+  const rating = club.settings.rating || DEFAULT_SETTINGS.rating
+  if (rating.mode === 'off') throw new UserError('本球队没有开启自评等级')
+  const v = String(level || '').trim()
+  if (v && !validLevel(rating, v)) throw new UserError('等级不在可选范围内')
+  await db.collection('members').doc(memberId(clubId, openid)).update({ data: { level: v } })
+  return { level: v }
+}
+
 module.exports = {
   archiveClub,
+  setMyLevel,
   cleanSettings,
   saveTemplate,
   deleteTemplate,

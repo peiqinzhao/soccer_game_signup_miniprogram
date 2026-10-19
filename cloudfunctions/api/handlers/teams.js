@@ -7,6 +7,7 @@
 //   - 守门员顺序：首批随机；后到的队（如 C）在分队时预先随机好号码，依次发给到场的人；超员的人排在本队最后。
 const crypto = require('crypto')
 const { db, _, UserError, getDoc, mustGet, listAll, regId, requireAdmin } = require('../lib/db')
+const { validLevel } = require('../lib/rules')
 
 const TEAM_NAMES = 'ABCDEF'.split('')
 
@@ -154,7 +155,7 @@ async function reshuffleGoalkeepers({ openid, gameId, team }) {
 }
 
 // 给 getGame 用的分队视图
-function teamsView(game, regs, profiles, openid) {
+function teamsView(game, regs, profiles, openid, rating) {
   if (!game.autoTeams) return null
   const plan = autoPlan(game)
   const checkedCount = regs.filter((r) => r.status === 'registered' && r.checkinAt).length
@@ -168,6 +169,7 @@ function teamsView(game, regs, profiles, openid) {
         openid: r.openid,
         name: (profiles[r.openid] || {}).name || '未命名',
         avatar: (profiles[r.openid] || {}).avatar || '',
+        level: validLevel(rating, (profiles[r.openid] || {}).level),
         gk: r.gk,
         late: !r.teamInitial,
       })),

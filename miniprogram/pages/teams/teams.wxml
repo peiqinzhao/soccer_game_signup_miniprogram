@@ -17,7 +17,7 @@
       <view wx:for="{{team.members}}" wx:key="openid" class="row" style="padding:10rpx 0;">
         <text class="gk {{t.goalkeeper ? '' : 'plain'}}">{{item.gk}}</text>
         <image class="avatar" src="{{item.avatar}}" mode="aspectFill" style="margin-left:16rpx;" />
-        <text class="flex1 {{item.openid === myOpenid ? 'bold' : ''}}" style="margin-left:16rpx;">{{item.name}}</text>
+        <text class="flex1 {{item.openid === myOpenid ? 'bold' : ''}}" style="margin-left:16rpx;">{{item.name}}<text wx:if="{{item.level}}" class="tag tag-level">{{item.level}}</text></text>
         <text wx:if="{{item.late}}" class="tag">后到</text>
       </view>
       <view wx:if="{{!team.members.length}}" class="sub small">等待签到…</view>
