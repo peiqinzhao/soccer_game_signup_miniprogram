@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/home/home",
+    "pages/stats/stats",
     "pages/me/me",
     "pages/game/game",
     "pages/game-edit/game-edit",
@@ -23,6 +24,7 @@
     "backgroundColor": "#ffffff",
     "list": [
       { "pagePath": "pages/home/home", "text": "比赛" },
+      { "pagePath": "pages/stats/stats", "text": "数据榜" },
       { "pagePath": "pages/me/me", "text": "我的" }
     ]
   },

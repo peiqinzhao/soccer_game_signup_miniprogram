@@ -15,6 +15,7 @@ const ACTIONS = {
   login: user.login,
   updateProfile: user.updateProfile,
   myStats: stats.myStats,
+  leaderboard: stats.leaderboard,
 
   createClub: club.createClub,
   archiveClub: club.archiveClub,
@@ -40,6 +41,7 @@ const ACTIONS = {
   setAttendance: game.setAttendance,
   toggleTag: game.toggleTag,
   setRegNote: game.setRegNote,
+  setMatchStats: game.setMatchStats,
   setGameTags: game.setGameTags,
   fineNoForward: game.fineNoForward,
   subscribeChange: game.subscribeChange,

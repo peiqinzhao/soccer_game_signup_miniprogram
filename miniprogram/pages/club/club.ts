@@ -37,6 +37,11 @@ Page({
 
   go(e: WechatMiniprogram.TouchEvent) {
     const id = this.data.id
+    const to = e.currentTarget.dataset.to
+    if (to === 'stats') {
+      wx.switchTab({ url: '/pages/stats/stats' })
+      return
+    }
     const urls: Record<string, string> = {
       newGame: `/pages/game-edit/game-edit?clubId=${id}`,
       fines: `/pages/fines/fines?clubId=${id}`,
@@ -44,7 +49,7 @@ Page({
       settings: `/pages/club-edit/club-edit?clubId=${id}`,
       newVenue: `/pages/venue/venue?clubId=${id}`,
     }
-    wx.navigateTo({ url: urls[e.currentTarget.dataset.to] })
+    wx.navigateTo({ url: urls[to] })
   },
 
   editVenue(e: WechatMiniprogram.TouchEvent) {

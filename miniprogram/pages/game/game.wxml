@@ -85,6 +85,28 @@
     <view wx:if="{{changeTemplate && !d.me.reg.subscribedChange && !settled}}" class="small link mt" bindtap="onSubscribeChange">🔔 比赛改时间或取消时通知我</view>
   </view>
 
+  <!-- 本场个人数据：签到后可记录自己的进球和助攻 -->
+  <view wx:if="{{canRecordMyStats}}" class="card">
+    <view class="row-between">
+      <text class="bold">本场数据（进球 / 助攻）</text>
+      <text class="link small" bindtap="onEditMyStats">输入数字 ›</text>
+    </view>
+    <view class="row-between mt">
+      <view class="row">
+        <text class="sub">⚽ 进球</text>
+        <text class="btn btn-ghost btn-sm" style="margin-left:16rpx; padding:4rpx 20rpx;" data-field="goals" data-delta="-1" bindtap="onStepMyStat">－</text>
+        <text class="bold" style="min-width:56rpx; text-align:center; font-size:34rpx;">{{myGoals}}</text>
+        <text class="btn btn-ghost btn-sm" style="padding:4rpx 20rpx;" data-field="goals" data-delta="1" bindtap="onStepMyStat">＋</text>
+      </view>
+      <view class="row">
+        <text class="sub">👟 助攻</text>
+        <text class="btn btn-ghost btn-sm" style="margin-left:16rpx; padding:4rpx 20rpx;" data-field="assists" data-delta="-1" bindtap="onStepMyStat">－</text>
+        <text class="bold" style="min-width:56rpx; text-align:center; font-size:34rpx;">{{myAssists}}</text>
+        <text class="btn btn-ghost btn-sm" style="padding:4rpx 20rpx;" data-field="assists" data-delta="1" bindtap="onStepMyStat">＋</text>
+      </view>
+    </view>
+  </view>
+
   <!-- 分队 -->
   <view wx:if="{{d.teams && d.game.status === 'active'}}" class="card">
     <view class="row-between">
@@ -122,7 +144,7 @@
       <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
     </view>
     <view wx:if="{{notifyText}}" class="sub small mt">{{notifyText}}</view>
-    <view class="hint">点名单里的人可以：代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已取消」里截止后才取消的人可以罚“取消未转发”</view>
+    <view class="hint">点名单里的人可以：改进球/助攻、代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已取消」里截止后才取消的人可以罚“取消未转发”</view>
   </view>
 
   <!-- 名单 -->
@@ -144,11 +166,13 @@
         <text class="sub small" style="width:44rpx;">{{index + 1}}</text>
         <image class="avatar" src="{{item.avatar}}" mode="aspectFill" />
         <view class="flex1" style="margin-left:20rpx;">
-          <view class="row">
+          <view class="row" style="flex-wrap:wrap;">
             <text class="ellipsis">{{item.name}}</text>
             <text wx:if="{{item.isAdmin}}" class="tag tag-admin">管理员</text>
             <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
             <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
+            <text wx:if="{{item.goals}}" class="tag tag-ok">⚽ {{item.goals}}球</text>
+            <text wx:if="{{item.assists}}" class="tag tag-ok">👟 {{item.assists}}助</text>
             <text wx:if="{{item.fineText}}" class="tag {{item.fineClass}}">{{item.fineText}}</text>
             <text wx:for="{{item.tags}}" wx:for-item="t" wx:key="*this" class="tag tag-ok">{{t}}</text>
           </view>

@@ -1,0 +1,6 @@
+.clubs { white-space: nowrap; margin: 0 -24rpx 24rpx; width: calc(100% + 48rpx); }
+.clubs-inner { display: inline-flex; padding: 0 24rpx; }
+.club-chip { display: inline-flex; align-items: center; background: #fff; border-radius: 40rpx; padding: 14rpx 28rpx; margin-right: 16rpx; font-size: 26rpx; }
+.club-chip.on { background: #111111; color: #ffffff; font-weight: 600; }
+.stat-col { width: 96rpx; text-align: center; flex-shrink: 0; }
+.rank-col { width: 56rpx; text-align: center; flex-shrink: 0; font-weight: 600; }

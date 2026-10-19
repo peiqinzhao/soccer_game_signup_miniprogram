@@ -19,7 +19,7 @@ Page({
     s: null as Session | null,
     nickname: '',
     fines: [] as PendingFine[],
-    stats: [] as (MyClubStats & { attendanceText: string; finesText: string; moneyText: string })[],
+    stats: [] as (MyClubStats & { attendanceText: string; goalsText: string; finesText: string; moneyText: string })[],
   },
 
   onShow() {
@@ -51,6 +51,7 @@ Page({
           return {
             ...c,
             attendanceText: parts.join(' · '),
+            goalsText: `累计进球 ${c.goals || 0} · 助攻 ${c.assists || 0}`,
             finesText: f.byReason.length ? f.byReason.map((x) => `${x.reason} ${x.n} 次`).join(' · ') : '没有罚款',
             moneyText: f.totalCents ? `累计 ${money(f.totalCents)}，已付 ${money(f.paidCents)}，待付 ${money(f.pendingCents)}` : '',
           }

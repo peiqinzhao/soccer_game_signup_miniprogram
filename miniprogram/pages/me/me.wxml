@@ -24,6 +24,7 @@
   <view wx:for="{{stats}}" wx:key="clubId" class="card">
     <view class="card-title">{{stats.length > 1 ? item.clubName + ' · ' : ''}}我的记录</view>
     <view class="small">⚽ {{item.attendanceText}}</view>
+    <view class="small mt">🏆 {{item.goalsText}}</view>
     <block wx:if="{{item.finesEnabled}}">
       <view class="small mt" data-id="{{item.clubId}}" bindtap="openFines">💰 {{item.finesText}} <text class="sub">›</text></view>
       <view wx:if="{{item.moneyText}}" class="sub small">{{item.moneyText}}</view>

@@ -1,0 +1,65 @@
+<view class="page">
+  <scroll-view wx:if="{{clubs.length > 1}}" scroll-x class="clubs" enhanced show-scrollbar="{{false}}">
+    <view class="clubs-inner">
+      <view wx:for="{{clubs}}" wx:key="clubId" class="club-chip {{clubId === item.clubId ? 'on' : ''}}" data-id="{{item.clubId}}" bindtap="switchClub">
+        <text>{{item.clubName}}</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{clubName}}" class="card">
+    <view class="row-between">
+      <view class="card-title" style="margin:0;">{{clubName}} · 数据总榜</view>
+      <text class="sub small">共 {{rows.length}} 人</text>
+    </view>
+    <view class="row-between mt" style="text-align:center; padding-top:8rpx;">
+      <view class="flex1">
+        <view style="font-size:44rpx; font-weight:700;">{{totalGoals}}</view>
+        <view class="sub small">总进球 ⚽</view>
+      </view>
+      <view class="flex1">
+        <view style="font-size:44rpx; font-weight:700;">{{totalAssists}}</view>
+        <view class="sub small">总助攻 👟</view>
+      </view>
+      <view class="flex1">
+        <view style="font-size:44rpx; font-weight:700;">{{maxGames}}</view>
+        <view class="sub small">最多出勤 🏟️</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="row mb" style="padding: 0 8rpx;">
+    <text class="{{sortBy === 'goals' ? 'bold' : 'sub'}}" data-sort="goals" bindtap="changeSort">射手榜</text>
+    <text class="{{sortBy === 'assists' ? 'bold' : 'sub'}}" style="margin-left:40rpx;" data-sort="assists" bindtap="changeSort">助攻榜</text>
+    <text class="{{sortBy === 'games' ? 'bold' : 'sub'}}" style="margin-left:40rpx;" data-sort="games" bindtap="changeSort">出场榜</text>
+  </view>
+
+  <view class="card" wx:if="{{rows.length}}">
+    <view class="row sub small" style="padding-bottom:16rpx; border-bottom:1rpx solid #eee;">
+      <text class="rank-col">#</text>
+      <text class="flex1" style="margin-left:16rpx;">球员</text>
+      <text class="stat-col {{sortBy === 'games' ? 'bold' : ''}}" data-sort="games" bindtap="changeSort">场次</text>
+      <text class="stat-col {{sortBy === 'goals' ? 'bold' : ''}}" data-sort="goals" bindtap="changeSort">进球</text>
+      <text class="stat-col {{sortBy === 'assists' ? 'bold' : ''}}" data-sort="assists" bindtap="changeSort">助攻</text>
+    </view>
+
+    <block wx:for="{{rows}}" wx:key="openid">
+      <view class="row" style="padding: 18rpx 0; border-bottom:1rpx solid #f5f5f5;">
+        <text class="rank-col {{index < 3 ? 'bold' : 'sub'}}">{{index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}}</text>
+        <image class="avatar" src="{{item.avatar}}" mode="aspectFill" style="width:60rpx; height:60rpx; margin-left:12rpx;" />
+        <view class="flex1 row" style="margin-left:16rpx;">
+          <text class="ellipsis {{item.openid === myOpenid ? 'bold' : ''}}">{{item.name}}</text>
+          <text wx:if="{{item.openid === myOpenid}}" class="tag">我</text>
+        </view>
+        <text class="stat-col {{sortBy === 'games' ? 'bold' : 'sub'}}">{{item.games}}</text>
+        <text class="stat-col {{sortBy === 'goals' ? 'bold ok' : ''}}">{{item.goals}}</text>
+        <text class="stat-col {{sortBy === 'assists' ? 'bold' : ''}}">{{item.assists}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{loaded && !rows.length}}" class="empty">
+    <view>暂无比赛数据</view>
+    <view class="small mt">比赛签到后即可记录本场进球与助攻</view>
+  </view>
+</view>

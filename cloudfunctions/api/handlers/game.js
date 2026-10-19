@@ -331,6 +331,8 @@ async function getGame({ openid, gameId }) {
       checkinAt: r.checkinAt || 0,
       checkinMethod: r.checkinMethod || '',
       attendance: r.attendance || '',
+      goals: r.goals || 0,
+      assists: r.assists || 0,
       subscribedChange: !!r.subscribedChange,
     }
   }
@@ -446,6 +448,8 @@ async function signup({ openid, gameId, inviter, subscribed, subscribedChange, e
         teamInitial: false,
         tags: [],
         note: '',
+        goals: 0,
+        assists: 0,
         subscribed: status === 'waitlist' && !!subscribed,
         subscribedChange: !!subscribedChange,
         mpState: mpState(envVersion),
@@ -832,9 +836,38 @@ async function setRegNote({ openid, gameId, note, target }) {
   return { note: text }
 }
 
+// 记录本场进球与助攻：队员签到后可填写自己的数据，管理员可修改任意已报名队员的数据
+async function setMatchStats({ openid, gameId, goals, assists, target }) {
+  const game = await mustGet('games', gameId, '比赛')
+  if (game.status !== 'active') throw new UserError('比赛已取消')
+  const who = target || openid
+  let isAdmin = false
+  if (who !== openid) {
+    await requireAdmin(game.clubId, openid)
+    isAdmin = true
+  } else {
+    const m = await getMember(game.clubId, openid)
+    isAdmin = !!m && isAdminRole(m.role)
+  }
+  const reg = await getDoc('registrations', regId(gameId, who))
+  if (!reg || reg.status !== 'registered') throw new UserError('只有已报名的队员可以记录数据')
+  const checkedIn =
+    !!reg.checkinAt || reg.attendance === 'on_time' || reg.attendance === 'late' || game.checkinEnabled === false
+  if (!checkedIn && !isAdmin) {
+    throw new UserError('签到后才能记录进球和助攻')
+  }
+  const nextGoals = goals === undefined ? reg.goals || 0 : intIn(goals, 0, 99, '进球数')
+  const nextAssists = assists === undefined ? reg.assists || 0 : intIn(assists, 0, 99, '助攻数')
+  await db.collection('registrations').doc(reg._id).update({
+    data: { goals: nextGoals, assists: nextAssists },
+  })
+  return { goals: nextGoals, assists: nextAssists }
+}
+
 module.exports = {
   archiveGame,
   setRegNote,
+  setMatchStats,
   buildGameFields,
   toggleTag,
   setGameTags,

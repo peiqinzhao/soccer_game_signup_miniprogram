@@ -13,6 +13,9 @@
       <text>{{c.me.isAdmin ? '罚款管理' : '我的罚款'}}</text>
       <text class="sub"><text wx:if="{{c.pendingFines}}" class="tag tag-bad">{{c.pendingFines}} 笔待处理</text> ›</text>
     </view>
+    <view class="field" data-to="stats" bindtap="go">
+      <text>数据总榜（进球 / 助攻）</text><text class="sub">›</text>
+    </view>
     <view class="field" data-to="ledger" bindtap="go">
       <text>足球基金</text><text class="sub">›</text>
     </view>

@@ -425,3 +425,38 @@ test('my stats and the club-level fines switch', async () => {
   assert.strictEqual((await api(b, 'myStats')).clubs[0].finesEnabled, false)
   assert.deepStrictEqual((await api(b, 'myPendingFines')).fines, []) // 不再提示待付
 })
+
+test('match goals and assists: player self-record after checkin, admin edit, and leaderboard', async () => {
+  const { gameId, clubId, ids, checkin } = await setup({ capacity: 6, teamSize: 3, teamCount: 2, players: 3 })
+  const [o, a, b] = ids
+
+  // 签到前普通队员不能填自己的进球/助攻
+  assert.match(await apiErr(a, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /签到后/)
+
+  // 签到后自己可以记录进球和助攻
+  await checkin(o)
+  await checkin(a)
+  assert.deepStrictEqual(await api(a, 'setMatchStats', { gameId, goals: 2, assists: 1 }), { goals: 2, assists: 1 })
+  assert.deepStrictEqual(await api(o, 'setMatchStats', { gameId, goals: 1, assists: 2 }), { goals: 1, assists: 2 })
+
+  // 普通队员不能改别人的数据，管理员可以修改
+  assert.match(await apiErr(a, 'setMatchStats', { gameId, target: o, goals: 9, assists: 0 }), /管理员/)
+  assert.deepStrictEqual(await api(o, 'setMatchStats', { gameId, target: a, goals: 3, assists: 1 }), { goals: 3, assists: 1 })
+
+  const g = await api(o, 'getGame', { gameId })
+  const regA = g.registered.find((r) => r.openid === a)
+  assert.strictEqual(regA.goals, 3)
+  assert.strictEqual(regA.assists, 1)
+
+  const lb = await api(a, 'leaderboard', { clubId })
+  assert.strictEqual(lb.clubId, clubId)
+  assert.deepStrictEqual(
+    lb.rows.map((r) => [r.openid, r.games, r.goals, r.assists]),
+    [
+      [a, 1, 3, 1],
+      [o, 1, 1, 2],
+      [b, 0, 0, 0],
+    ],
+  )
+})
+

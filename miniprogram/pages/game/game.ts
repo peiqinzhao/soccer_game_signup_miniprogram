@@ -144,6 +144,9 @@ Page({
     tagStats: '', // 如“已付款 18/24”
     myTags: [] as { tag: string; on: boolean }[],
     myNote: '',
+    canRecordMyStats: false,
+    myGoals: 0,
+    myAssists: 0,
     // 取消后的转发提示
     shareDialog: { show: false, phase: '' as '' | Phase, fined: false },
     // 管理员取消/改时间后的“转发到群”提示
@@ -197,6 +200,12 @@ Page({
     const settled = !!g.settledAt
     const reg = d.me.reg
     const myStatus = reg ? reg.status : ''
+    const totalGoals = d.registered.reduce((s, r) => s + (r.goals || 0), 0)
+    const totalAssists = d.registered.reduce((s, r) => s + (r.assists || 0), 0)
+    const statParts = (g.tags || []).map(
+      (tag) => `${tag} ${d.registered.filter((r) => (r.tags || []).includes(tag)).length}/${d.registered.length}`,
+    )
+    if (totalGoals || totalAssists) statParts.push(`本场 ${totalGoals}球 ${totalAssists}助`)
     this.setData({
       loaded: true,
       d,
@@ -218,13 +227,17 @@ Page({
       fineText: money(g.fineCents),
       formatStr: formatText(g.teamSize || 8, g.teamCount || 3),
       teamSizesText: d.teams ? d.teams.teams.map((t) => `${t.name} 队 ${t.members.length} 人`).join(' · ') : '',
-      tagStats: (g.tags || [])
-        .map((tag) => `${tag} ${d.registered.filter((r) => (r.tags || []).includes(tag)).length}/${d.registered.length}`)
-        .join(' · '),
+      tagStats: statParts.join(' · '),
       myTags:
         reg && reg.status === 'registered' ? (g.tags || []).map((tag) => ({ tag, on: (reg.tags || []).includes(tag) })) : [],
       myCheckinText: reg && reg.checkinAt ? fmtTimeSec(reg.checkinAt) : '',
       myNote: reg ? reg.note || '' : '',
+      canRecordMyStats:
+        myStatus === 'registered' &&
+        g.status === 'active' &&
+        (!!reg!.checkinAt || reg!.attendance === 'on_time' || reg!.attendance === 'late' || g.checkinEnabled === false),
+      myGoals: reg ? reg.goals || 0 : 0,
+      myAssists: reg ? reg.assists || 0 : 0,
       notifyText: notifyText(d, t),
     })
     this.updateList()
@@ -582,14 +595,86 @@ Page({
     })
   },
 
+  // ---------- 本场进球 / 助攻 ----------
+
+  async onStepMyStat(e: WechatMiniprogram.TouchEvent) {
+    const reg = this.data.d && this.data.d.me.reg
+    if (!reg) return
+    const field = e.currentTarget.dataset.field as 'goals' | 'assists'
+    const delta = Number(e.currentTarget.dataset.delta) || 0
+    const nextGoals = field === 'goals' ? Math.max(0, Math.min(99, (reg.goals || 0) + delta)) : reg.goals || 0
+    const nextAssists = field === 'assists' ? Math.max(0, Math.min(99, (reg.assists || 0) + delta)) : reg.assists || 0
+    if (nextGoals === (reg.goals || 0) && nextAssists === (reg.assists || 0)) return
+    await this.saveMatchStats(reg.openid, nextGoals, nextAssists, '')
+  },
+
+  onEditMyStats() {
+    const reg = this.data.d && this.data.d.me.reg
+    if (reg) this.promptMatchStats(reg.openid, reg.goals || 0, reg.assists || 0, '')
+  },
+
+  async promptMatchStats(openid: string, curGoals: number, curAssists: number, name: string) {
+    const r1 = await wx.showModal({
+      title: name ? `${name} · 本场进球数` : '本场进球数',
+      content: String(curGoals),
+      editable: true,
+      placeholderText: '0–99 的整数',
+    })
+    if (!r1.confirm) return
+    const goals = Math.round(Number(r1.content))
+    if (!Number.isFinite(goals) || goals < 0 || goals > 99) {
+      wx.showToast({ title: '进球数需为 0–99', icon: 'none' })
+      return
+    }
+    const r2 = await wx.showModal({
+      title: name ? `${name} · 本场助攻数` : '本场助攻数',
+      content: String(curAssists),
+      editable: true,
+      placeholderText: '0–99 的整数',
+    })
+    if (!r2.confirm) return
+    const assists = Math.round(Number(r2.content))
+    if (!Number.isFinite(assists) || assists < 0 || assists > 99) {
+      wx.showToast({ title: '助攻数需为 0–99', icon: 'none' })
+      return
+    }
+    await this.saveMatchStats(openid, goals, assists, '保存中')
+  },
+
+  async saveMatchStats(openid: string, goals: number, assists: number, loading: string) {
+    const d = this.data.d
+    if (!d) return
+    const isMe = openid === d.me.openid
+    const res = await run<{ goals: number; assists: number }>(
+      'setMatchStats',
+      { gameId: this.data.id, goals, assists, target: isMe ? undefined : openid },
+      loading,
+    )
+    if (!res) return
+    const patch = (x: RegView): RegView =>
+      x.openid === openid ? { ...x, goals: res.goals, assists: res.assists } : x
+    this.render({
+      ...d,
+      registered: d.registered.map(patch),
+      me: { ...d.me, reg: d.me.reg ? patch(d.me.reg) : null },
+    })
+  },
+
   // ---------- 复制名单 ----------
 
   onCopyRoster() {
     const d = this.data.d
     if (!d) return
     const g = d.game
-    const withTags = (r: RegView) =>
-      r.name + ((r.tags || []).length ? ` [${(r.tags || []).join('][')}]` : '') + (r.note ? `（${r.note}）` : '')
+    const withTags = (r: RegView) => {
+      const stats = [r.goals ? `${r.goals}球` : '', r.assists ? `${r.assists}助` : ''].filter(Boolean).join(' ')
+      return (
+        r.name +
+        (stats ? ` (${stats})` : '') +
+        ((r.tags || []).length ? ` [${(r.tags || []).join('][')}]` : '') +
+        (r.note ? `（${r.note}）` : '')
+      )
+    }
     const lines = [g.title, `${g.local.start}–${g.local.end}`, `📍 ${g.venue.name}`, `已报名 ${d.registered.length}/${g.capacity}`]
     if (this.data.tagStats) lines.push(this.data.tagStats)
     this.data.registered.forEach((r, i) => lines.push(`${i + 1}. ${withTags(r)}`))
@@ -718,6 +803,15 @@ Page({
         // 签到窗口开放后、本人还没签到时才能代签到
         items.push({ label: '代签到（记为准时）', run: setAtt('on_time') })
       }
+    }
+    if (status === 'registered' && row) {
+      items.push({
+        label: `进球 / 助攻（${row.goals || 0}球 ${row.assists || 0}助）…`,
+        run: async () => {
+          await this.promptMatchStats(openid, row.goals || 0, row.assists || 0, name)
+          return null
+        },
+      })
     }
     const tags = d.game.tags || []
     if (status === 'registered' && tags.length && row) {

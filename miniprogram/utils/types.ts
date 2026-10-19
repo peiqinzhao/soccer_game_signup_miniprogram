@@ -85,6 +85,8 @@ export interface RegView {
   checkinAt: number
   checkinMethod: string
   attendance: '' | 'on_time' | 'late' | 'no_show'
+  goals?: number
+  assists?: number
   subscribedChange: boolean
 }
 
@@ -240,6 +242,24 @@ export interface MyClubStats {
   clubId: string
   clubName: string
   finesEnabled: boolean
+  goals?: number
+  assists?: number
   attendance: { played: number; onTime: number; late: number; noShow: number; cancelled: number; upcoming: number }
   fines: { byReason: { reason: string; n: number }[]; totalCents: number; paidCents: number; pendingCents: number }
+}
+
+export interface LeaderboardRow {
+  openid: string
+  name: string
+  avatar: string
+  games: number
+  goals: number
+  assists: number
+}
+
+export interface LeaderboardData {
+  clubs: { clubId: string; clubName: string }[]
+  clubId: string
+  clubName: string
+  rows: LeaderboardRow[]
 }
