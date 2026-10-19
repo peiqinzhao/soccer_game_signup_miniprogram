@@ -19,7 +19,13 @@ Page({
     s: null as Session | null,
     nickname: '',
     fines: [] as PendingFine[],
-    stats: [] as (MyClubStats & { attendanceText: string; goalsText: string; finesText: string; moneyText: string })[],
+    stats: [] as (MyClubStats & {
+      attendanceText: string
+      goalsText: string
+      finesText: string
+      moneyText: string
+      levelPicker: string[] // ['不填', ...可选等级]
+    })[],
   },
 
   onShow() {
@@ -54,6 +60,7 @@ Page({
             goalsText: `累计进球 ${c.goals || 0} · 助攻 ${c.assists || 0}`,
             finesText: f.byReason.length ? f.byReason.map((x) => `${x.reason} ${x.n} 次`).join(' · ') : '没有罚款',
             moneyText: f.totalCents ? `累计 ${money(f.totalCents)}，已付 ${money(f.paidCents)}，待付 ${money(f.pendingCents)}` : '',
+            levelPicker: (c.levelOptions || []).length ? ['不填', ...(c.levelOptions || [])] : [],
           }
         }),
       })
@@ -88,6 +95,15 @@ Page({
     setSession(s)
     this.setData({ s })
     wx.showToast({ title: '已保存', icon: 'success' })
+  },
+
+  async onPickLevel(e: WechatMiniprogram.PickerChange) {
+    const idx: number = e.currentTarget.dataset.index
+    const club = this.data.stats[idx]
+    const i = Number(e.detail.value)
+    const level = i === 0 ? '' : club.levelPicker[i]
+    const res = await run<{ level: string }>('setMyLevel', { clubId: club.clubId, level }, '保存中')
+    if (res) this.setData({ [`stats[${idx}].level`]: res.level })
   },
 
   openClub(e: WechatMiniprogram.TouchEvent) {

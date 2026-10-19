@@ -256,6 +256,8 @@ export interface MyClubStats {
   clubId: string
   clubName: string
   finesEnabled: boolean
+  levelOptions?: string[]
+  level?: string
   goals?: number
   assists?: number
   attendance: { played: number; onTime: number; late: number; noShow: number; cancelled: number; upcoming: number }

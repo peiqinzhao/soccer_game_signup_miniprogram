@@ -1,6 +1,6 @@
 // “我的”页统计与数据榜：按球队统计出勤、罚款、总场次、总进球、总助攻
 const { db, _, listAll, listEvery, profilesFor } = require('../lib/db')
-const { FINE_REASONS } = require('../lib/rules')
+const { FINE_REASONS, levelOptions, validLevel } = require('../lib/rules')
 
 async function myStats({ openid }) {
   const members = await listAll(db.collection('members').where({ openid }))
@@ -46,6 +46,8 @@ async function myStats({ openid }) {
         clubId: c._id,
         clubName: c.name,
         finesEnabled: !c.settings || c.settings.finesEnabled !== false,
+        levelOptions: levelOptions(c.settings && c.settings.rating),
+        level: validLevel(c.settings && c.settings.rating, (members.find((m) => m.clubId === c._id) || {}).level),
         goals,
         assists,
         attendance: {

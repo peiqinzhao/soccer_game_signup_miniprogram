@@ -488,6 +488,8 @@ test('self-rated levels: club config, per-club value, shown on roster, hidden wh
   assert.strictEqual(g.club.levelOptions.length, 13)
   assert.strictEqual((await api(a, 'getGame', { gameId })).me.level, '3.5')
   assert.strictEqual((await api(o, 'getClub', { clubId })).members.find((m) => m.openid === a).level, '3.5')
+  const myClub = (await api(a, 'myStats')).clubs[0]
+  assert.deepStrictEqual([myClub.level, myClub.levelOptions.length], ['3.5', 13])
   // 改成文字档位：旧的数字等级不再显示
   await api(o, 'updateClub', { clubId, settings: { rating: { mode: 'labels', labels: '入门,中级,高手' } } })
   g = await api(o, 'getGame', { gameId })
