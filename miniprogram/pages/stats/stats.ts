@@ -1,5 +1,6 @@
 import { run } from '../../utils/api'
 import { getSession } from '../../utils/session'
+import { takeFlash } from '../../utils/flash'
 import { LeaderboardData, LeaderboardRow } from '../../utils/types'
 
 type SortKey = 'goals' | 'assists' | 'games'
@@ -38,6 +39,8 @@ Page({
   },
 
   onShow() {
+    const clubId = takeFlash<string>('statsClubId')
+    if (clubId) this.setData({ clubId })
     this.load()
   },
 

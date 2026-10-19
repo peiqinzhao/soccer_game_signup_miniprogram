@@ -1,4 +1,5 @@
 import { run } from '../../utils/api'
+import { setFlash } from '../../utils/flash'
 import { getSession } from '../../utils/session'
 import { ClubDetail } from '../../utils/types'
 
@@ -39,6 +40,8 @@ Page({
     const id = this.data.id
     const to = e.currentTarget.dataset.to
     if (to === 'stats') {
+      // switchTab 不能带参数，用 flash 告诉数据榜显示哪个球队
+      setFlash('statsClubId', id)
       wx.switchTab({ url: '/pages/stats/stats' })
       return
     }

@@ -1,5 +1,5 @@
 // “我的”页统计与数据榜：按球队统计出勤、罚款、总场次、总进球、总助攻
-const { db, _, listAll, profilesFor } = require('../lib/db')
+const { db, _, listAll, listEvery, profilesFor } = require('../lib/db')
 const { FINE_REASONS } = require('../lib/rules')
 
 async function myStats({ openid }) {
@@ -12,11 +12,14 @@ async function myStats({ openid }) {
   const clubIds = clubs.map((c) => c._id)
 
   const [regs, fines] = await Promise.all([
-    listAll(db.collection('registrations').where({ openid, clubId: _.in(clubIds) })),
-    listAll(db.collection('fines').where({ openid, clubId: _.in(clubIds) })),
+    listEvery(db.collection('registrations').where({ openid, clubId: _.in(clubIds) })),
+    listEvery(db.collection('fines').where({ openid, clubId: _.in(clubIds) })),
   ])
   const gameIds = [...new Set(regs.map((r) => r.gameId))]
-  const games = gameIds.length ? await listAll(db.collection('games').where({ _id: _.in(gameIds) })) : []
+  const games = []
+  for (let i = 0; i < gameIds.length; i += 500) {
+    games.push(...(await listAll(db.collection('games').where({ _id: _.in(gameIds.slice(i, i + 500)) }))))
+  }
   const gameById = Object.fromEntries(games.map((g) => [g._id, g]))
   const now = Date.now()
 
@@ -75,9 +78,9 @@ async function leaderboard({ openid, clubId }) {
   const cid = targetClub._id
 
   const [clubMembers, games, regs] = await Promise.all([
-    listAll(db.collection('members').where({ clubId: cid })),
-    listAll(db.collection('games').where({ clubId: cid, status: 'active' })),
-    listAll(db.collection('registrations').where({ clubId: cid, status: 'registered' })),
+    listEvery(db.collection('members').where({ clubId: cid })),
+    listEvery(db.collection('games').where({ clubId: cid, status: 'active' })),
+    listEvery(db.collection('registrations').where({ clubId: cid, status: 'registered' })),
   ])
   const activeGames = Object.fromEntries(games.filter((g) => !g.archived).map((g) => [g._id, g]))
   const allOpenids = [...new Set([...clubMembers.map((m) => m.openid), ...regs.map((r) => r.openid)])]

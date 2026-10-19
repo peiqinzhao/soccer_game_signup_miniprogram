@@ -28,6 +28,16 @@ async function listAll(query, limit = 1000) {
   return res.data
 }
 
+// 读出全部记录（分页，没有 1000 条上限）。用于会随时间无限增长的统计查询
+async function listEvery(query, pageSize = 1000) {
+  const out = []
+  for (;;) {
+    const res = await query.orderBy('_id', 'asc').skip(out.length).limit(pageSize).get()
+    out.push(...res.data)
+    if (res.data.length < pageSize) return out
+  }
+}
+
 // 球队删除是软删除（archived），删除后当作不存在
 async function mustGetClub(clubId) {
   const club = await getDoc('clubs', clubId)
@@ -105,6 +115,7 @@ module.exports = {
   mustGet,
   mustGetClub,
   listAll,
+  listEvery,
   memberId,
   regId,
   getMember,

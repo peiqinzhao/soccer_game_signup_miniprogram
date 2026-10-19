@@ -851,6 +851,7 @@ async function setMatchStats({ openid, gameId, goals, assists, target }) {
   }
   const reg = await getDoc('registrations', regId(gameId, who))
   if (!reg || reg.status !== 'registered') throw new UserError('只有已报名的队员可以记录数据')
+  if (Date.now() < game.startAt) throw new UserError('比赛开始后才能记录进球和助攻')
   const checkedIn =
     !!reg.checkinAt || reg.attendance === 'on_time' || reg.attendance === 'late' || game.checkinEnabled === false
   if (!checkedIn && !isAdmin) {

@@ -430,12 +430,16 @@ test('match goals and assists: player self-record after checkin, admin edit, and
   const { gameId, clubId, ids, checkin } = await setup({ capacity: 6, teamSize: 3, teamCount: 2, players: 3 })
   const [o, a, b] = ids
 
-  // 签到前普通队员不能填自己的进球/助攻
-  assert.match(await apiErr(a, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /签到后/)
+  // 开赛前谁都不能填
+  assert.match(await apiErr(a, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /比赛开始后/)
 
-  // 签到后自己可以记录进球和助攻
+  // 签到后自己可以记录进球和助攻（开赛后）
   await checkin(o)
   await checkin(a)
+  assert.match(await apiErr(a, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /比赛开始后/)
+  fake.setNow(T.zonedToUtcMs('2026-10-04', '10:05', tz))
+  // 开赛后，没签到的普通队员不能填
+  assert.match(await apiErr(b, 'setMatchStats', { gameId, goals: 1, assists: 0 }), /签到后/)
   assert.deepStrictEqual(await api(a, 'setMatchStats', { gameId, goals: 2, assists: 1 }), { goals: 2, assists: 1 })
   assert.deepStrictEqual(await api(o, 'setMatchStats', { gameId, goals: 1, assists: 2 }), { goals: 1, assists: 2 })
 
@@ -460,3 +464,14 @@ test('match goals and assists: player self-record after checkin, admin edit, and
   )
 })
 
+
+test('listEvery reads past the 1000-row page limit', async () => {
+  fake.reset()
+  const { db, listEvery, listAll } = require('../lib/db')
+  for (let i = 0; i < 2345; i++) fake.store.registrations = fake.store.registrations || new Map()
+  const m = fake.store.registrations
+  for (let i = 0; i < 2345; i++) m.set(`r${String(i).padStart(5, '0')}`, { _id: `r${String(i).padStart(5, '0')}`, clubId: 'c', status: 'registered' })
+  const q = () => db.collection('registrations').where({ clubId: 'c', status: 'registered' })
+  assert.strictEqual((await listAll(q())).length, 1000)
+  assert.strictEqual((await listEvery(q())).length, 2345)
+})

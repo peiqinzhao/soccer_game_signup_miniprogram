@@ -850,24 +850,32 @@ Page({
         )
       },
     })
+    // 微信操作菜单最多 6 项：备注和改名合成一项
+    const rename = async () => {
+      const r = await wx.showModal({ title: '修改名字', content: name, editable: true, placeholderText: '群里大家认识的名字' })
+      const next = (r.content || '').trim()
+      if (!r.confirm || !next || next === name) return null
+      return run('renameMember', { clubId: d.game.clubId, target: openid, name: next }, '保存中')
+    }
     if (row && (status === 'registered' || status === 'waitlist')) {
       items.push({
-        label: '备注…',
+        label: '备注 / 名字…',
         run: async () => {
+          let pick: number
+          try {
+            pick = (await wx.showActionSheet({ itemList: ['修改备注', '修改名字'] })).tapIndex
+          } catch (err) {
+            return null
+          }
+          if (pick === 1) return rename()
           await this.editNote(openid, row.note || '', name)
           return null // 已即时更新界面
         },
       })
+    } else {
+      items.push({ label: '修改名字', run: rename })
     }
-    items.push({
-      label: '修改名字',
-      run: async () => {
-        const r = await wx.showModal({ title: '修改名字', content: name, editable: true, placeholderText: '群里大家认识的名字' })
-        const next = (r.content || '').trim()
-        if (!r.confirm || !next || next === name) return null
-        return run('renameMember', { clubId: d.game.clubId, target: openid, name: next }, '保存中')
-      },
-    })
+    if (items.length > 6) console.warn('action sheet has more than 6 items', items.map((i) => i.label))
     try {
       const sheet = await wx.showActionSheet({ itemList: items.slice(0, 6).map((i) => i.label) })
       const done = await items[sheet.tapIndex].run()
