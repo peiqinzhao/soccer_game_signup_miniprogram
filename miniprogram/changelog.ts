@@ -5,4 +5,5 @@ export const APP_VERSION = '1.0.14'
 export const CHANGELOG: string[] = [
   '罚款可以按迟到、未到、临时取消分别设置金额',
   '取消截止可以设成“开场前 N 小时”（球队设置里选择）',
+  '界面改成通用说法，足球、篮球、网球、羽毛球等都适用',
 ]

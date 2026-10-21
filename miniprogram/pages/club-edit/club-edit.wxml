@@ -2,7 +2,7 @@
   <view class="card">
     <view class="field">
       <text class="field-label">球队名称</text>
-      <input class="field-value" value="{{name}}" data-key="name" bindinput="onInput" placeholder="如：湾区养生足球" maxlength="30" />
+      <input class="field-value" value="{{name}}" data-key="name" bindinput="onInput" placeholder="如：周四篮球群" maxlength="30" />
     </view>
     <view class="field">
       <text class="field-label">Venmo 收款账号</text>

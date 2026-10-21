@@ -124,7 +124,7 @@
 
   <view class="card">
     <view class="card-title">备注</view>
-    <textarea value="{{note}}" data-key="note" bindinput="onInput" maxlength="500" auto-height placeholder="自带深浅球衣，尽量穿 turf 鞋…" style="width:100%; min-height:160rpx;" />
+    <textarea value="{{note}}" data-key="note" bindinput="onInput" maxlength="500" auto-height placeholder="如：自带深浅两色球衣，请准时到场" style="width:100%; min-height:160rpx;" />
   </view>
 
   <button class="btn" bindtap="save">{{gameId ? '保存修改' : '发起比赛'}}</button>

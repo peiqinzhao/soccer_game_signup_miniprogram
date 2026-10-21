@@ -934,7 +934,7 @@ Page({
     if (this.data.notice.kind === 'changed' && g.lastChange) {
       return { title: `⚠️ 比赛变更：${g.lastChange.text}，点击查看`, path }
     }
-    let title = `${g.local.start} ${g.venue.name}，报名踢球`
+    let title = `${g.local.start} ${g.venue.name}，快来报名`
     if (me && me.status === 'registered') title = `@所有人 “${who}” 参加该比赛，点击查看比赛详情`
     if (me && me.status === 'cancelled') title = `@所有人 “${who}” 取消报名，有空位可以递补`
     return { title, path }

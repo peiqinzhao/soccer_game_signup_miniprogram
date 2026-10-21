@@ -10,7 +10,7 @@
     <view wx:if="{{localText}}" class="sub small">{{localText}}</view>
     <view class="sub" bindtap="openMap">📍 {{d.game.venue.name}} <text class="link small">地图</text></view>
     <view class="sub small" wx:if="{{d.game.venue.address}}">{{d.game.venue.address}}</view>
-    <view class="sub">⚽ {{formatStr}}</view>
+    <view class="sub">👥 {{formatStr}}</view>
     <view class="sub small mt">
       {{d.club.name}}<text wx:if="{{d.game.checkinEnabled !== false}}"> · 开赛 {{d.game.lateGraceMin}} 分钟后未签到记迟到<text wx:if="{{d.game.fineCents > 0}}">，罚 {{fineText}}</text><text wx:if="{{(d.game.fineNoShowCents || 0) > 0}}">；未到罚 {{noShowFineText}}</text></text>
     </view>

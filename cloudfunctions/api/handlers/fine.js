@@ -114,7 +114,7 @@ async function resolveFines({ openid, clubId, fineIds, op, method, note }) {
   return { changed }
 }
 
-// 手动罚款（例如穿非 turf 鞋伤人）
+// 手动罚款（例如违反队规）
 // gameId 可选：从比赛页添加时关联到那场比赛
 async function addFine({ openid, clubId, target, amountCents, note, gameId }) {
   await requireAdmin(clubId, openid)

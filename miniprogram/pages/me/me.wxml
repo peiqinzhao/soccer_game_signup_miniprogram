@@ -29,7 +29,7 @@
         <text class="sub small">{{item.level || '未填写'}} ›</text>
       </view>
     </picker>
-    <view class="small">⚽ {{item.attendanceText}}</view>
+    <view class="small">📅 {{item.attendanceText}}</view>
     <view wx:if="{{item.matchStatsEnabled}}" class="small mt">🏆 {{item.goalsText}}</view>
     <block wx:if="{{item.finesEnabled}}">
       <view class="small mt" data-id="{{item.clubId}}" bindtap="openFines">💰 {{item.finesText}} <text class="sub">›</text></view>

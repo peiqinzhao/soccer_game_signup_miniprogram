@@ -23,7 +23,7 @@
       </view>
     </picker>
     <view class="field" data-to="ledger" bindtap="go">
-      <text>足球基金</text><text class="sub">›</text>
+      <text>球队基金</text><text class="sub">›</text>
     </view>
     <view wx:if="{{c.me.isAdmin}}" class="field" data-to="settings" bindtap="go">
       <text>球队设置</text><text class="sub">›</text>

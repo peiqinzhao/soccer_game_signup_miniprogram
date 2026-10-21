@@ -19,7 +19,7 @@
     </view>
     <view class="field">
       <text class="field-label">说明</text>
-      <input class="field-value" value="{{note}}" data-key="note" bindinput="onInput" placeholder="如：团购 5 个足球" maxlength="100" />
+      <input class="field-value" value="{{note}}" data-key="note" bindinput="onInput" placeholder="如：买球、场地费" maxlength="100" />
     </view>
     <picker mode="date" value="{{date}}" data-key="date" bindchange="onPick">
       <view class="field"><text class="field-label">日期</text><text class="field-value">{{date}} ›</text></view>

@@ -1,4 +1,4 @@
-// 足球基金账本：所有成员可看，管理员记账。罚款标记已付时自动入账（见 fine.js）。
+// 球队基金账本：所有成员可看，管理员记账。罚款标记已付时自动入账（见 fine.js）。
 const { db, UserError, mustGet, listAll, requireMember, requireAdmin, isAdminRole, profilesFor, fileUrls } = require('../lib/db')
 
 const TYPES = ['income', 'expense', 'opening']

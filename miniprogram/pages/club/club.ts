@@ -82,7 +82,7 @@ Page({
       ...(c.club.settings.finesEnabled === false ? [] : [{
         label: '添加罚款',
         run: async () => {
-          const reason = await wx.showModal({ title: `给 ${m.name} 添加罚款`, content: '', editable: true, placeholderText: '原因，如：穿非 turf 鞋伤人' })
+          const reason = await wx.showModal({ title: `给 ${m.name} 添加罚款`, content: '', editable: true, placeholderText: '原因，如：违反队规' })
           const note = (reason.content || '').trim()
           if (!reason.confirm || !note) return null
           const amt = await wx.showModal({ title: '金额（美元）', content: String(c.club.settings.fineCents / 100), editable: true })

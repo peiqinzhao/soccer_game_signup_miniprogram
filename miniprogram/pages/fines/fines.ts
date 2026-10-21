@@ -103,7 +103,7 @@ Page({
     const ids = this.selectedIds()
     const r = await wx.showModal({
       title: '标记已付',
-      content: `${ids.length} 笔共 ${this.data.selectedText}，通过${METHOD_TEXT[method]}支付。会自动记入足球基金。`,
+      content: `${ids.length} 笔共 ${this.data.selectedText}，通过${METHOD_TEXT[method]}支付。会自动记入球队基金。`,
     })
     if (!r.confirm) return
     if (await run('resolveFines', { clubId: this.data.clubId, fineIds: ids, op: 'paid', method }, '处理中')) this.load()
