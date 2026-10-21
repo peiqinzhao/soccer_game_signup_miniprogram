@@ -54,7 +54,9 @@ function buildGameFields(club, venue, f) {
   const lateGraceMin = intIn(f.lateGraceMin ?? s.lateGraceMin, 0, 120, '迟到宽限')
   const cancelDeadlineAt = f.cancelDeadline
     ? T.zonedToUtcMs(f.cancelDeadline.date, f.cancelDeadline.time, tz)
-    : T.deadlineBefore(startAt, tz, s.cancelDeadlineDaysBefore, s.cancelDeadlineTime)
+    : s.cancelDeadlineMode === 'hours'
+      ? startAt - (s.cancelDeadlineHours ?? 24) * 60 * MIN
+      : T.deadlineBefore(startAt, tz, s.cancelDeadlineDaysBefore, s.cancelDeadlineTime)
   const signupOpensAt = f.signupOpens ? T.zonedToUtcMs(f.signupOpens.date, f.signupOpens.time, tz) : 0
   if (cancelDeadlineAt > startAt) throw new UserError('取消不转发罚款截止时间不能晚于开赛时间')
   if (signupOpensAt >= startAt) throw new UserError('报名开放时间需早于开赛时间')
@@ -79,7 +81,13 @@ function buildGameFields(club, venue, f) {
     autoTeams: checkinOn && !!f.autoTeams,
     goalkeeper: checkinOn && !!f.autoTeams && !!f.goalkeeper,
     tags: tagsOrThrow(f.tags),
-    fineCents: s.finesEnabled === false ? 0 : intIn(f.fineCents ?? s.fineCents, 0, 100000, '罚款金额'),
+    fineCents: s.finesEnabled === false ? 0 : intIn(f.fineCents ?? s.fineCents, 0, 100000, '迟到罚款'),
+    fineNoShowCents:
+      s.finesEnabled === false ? 0 : intIn(f.fineNoShowCents ?? s.fineNoShowCents ?? s.fineCents, 0, 100000, '未到罚款'),
+    fineLateCancelCents:
+      s.finesEnabled === false
+        ? 0
+        : intIn(f.fineLateCancelCents ?? s.fineLateCancelCents ?? s.fineCents, 0, 100000, '临时取消罚款'),
     cancelDeadlineAt,
     signupOpensAt,
     penaltyWindowMin: s.penaltyWindowMin,
@@ -189,6 +197,8 @@ async function gameForm({ openid, clubId, gameId, copyLast }) {
     tags: src.tags || [],
     lateGraceMin: src.lateGraceMin,
     fineCents: src.fineCents,
+    fineNoShowCents: src.fineNoShowCents ?? src.fineCents,
+    fineLateCancelCents: src.fineLateCancelCents ?? src.fineCents,
     signupOpens: signup,
     cancelDeadline: gameId ? deadline : null, // 复制时用默认规则重新算
   }
@@ -491,14 +501,14 @@ async function cancelSignup({ openid, gameId }) {
   await db.collection('games').doc(gameId).update({ data: { registeredCount: _.inc(-1) } })
 
   let fined = false
-  if (phase === 'penalty' && game.fineCents > 0 && !rules.isLatePromotion(reg, game)) {
+  if (phase === 'penalty' && rules.fineFor(game, 'late_cancel') > 0 && !rules.isLatePromotion(reg, game)) {
     await createFine({
       clubId: game.clubId,
       gameId,
       openid,
       kind: 'cancel',
       reason: 'late_cancel',
-      amountCents: game.fineCents,
+      amountCents: rules.fineFor(game, 'late_cancel'),
     })
     fined = true
   }
@@ -685,7 +695,10 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
           .doc(fine._id)
           .update({ data: { status: 'waived', note: '按时签到', resolvedBy: 'system', resolvedAt: now } })
       } else if (fine.reason === 'no_show') {
-        await db.collection('fines').doc(fine._id).update({ data: { reason: 'late' } })
+        await db
+          .collection('fines')
+          .doc(fine._id)
+          .update({ data: { reason: 'late', amountCents: rules.fineFor(game, 'late') } })
       }
     }
   }
@@ -749,16 +762,17 @@ async function setAttendance({ openid, gameId, target, attendance }) {
     }
   } else if (fine) {
     const data = { reason: attendance }
+    if (fine.status === 'pending' || fine.status === 'waived') data.amountCents = rules.fineFor(game, attendance)
     if (fine.status === 'waived') Object.assign(data, { status: 'pending', note: '', resolvedBy: '', resolvedAt: 0 })
     await db.collection('fines').doc(fineId).update({ data })
-  } else if (game.fineCents > 0) {
+  } else if (rules.fineFor(game, attendance) > 0) {
     await createFine({
       clubId: game.clubId,
       gameId,
       openid: target,
       kind: 'attendance',
       reason: attendance,
-      amountCents: game.fineCents,
+      amountCents: rules.fineFor(game, attendance),
       createdBy: openid,
     })
   }
@@ -773,14 +787,14 @@ async function fineNoForward({ openid, gameId, target }) {
   if (!reg || reg.status !== 'cancelled' || reg.cancelPhase !== 'warn') {
     throw new UserError('只能对截止后才取消报名的人使用')
   }
-  if (game.fineCents <= 0) throw new UserError('本场罚款金额为 0')
+  if (rules.fineFor(game, 'no_forward') <= 0) throw new UserError('本场临时取消罚款金额为 0')
   const fine = await createFine({
     clubId: game.clubId,
     gameId,
     openid: target,
     kind: 'noforward',
     reason: 'no_forward',
-    amountCents: game.fineCents,
+    amountCents: rules.fineFor(game, 'no_forward'),
     createdBy: openid,
   })
   return { fineId: fine._id }

@@ -9,12 +9,17 @@ const DEFAULT_SETTINGS = {
   capacity: 24,
   durationMin: 120,
   lateGraceMin: 10, // 开赛后多少分钟内签到算准时
-  fineCents: 500,
+  fineCents: 500, // 迟到罚款
+  fineNoShowCents: 500, // 未到（报名没来）罚款
+  fineLateCancelCents: 500, // 临时取消（含取消未转发）罚款
   checkinRadiusM: 100,
   checkinOpenBeforeMin: 30,
   penaltyWindowMin: 60, // 开赛前多少分钟内取消算临时取消（罚款）
+  // 取消截止：day = 比赛前 N 天的固定时刻；hours = 开场前 N 小时
+  cancelDeadlineMode: 'day',
   cancelDeadlineDaysBefore: 1,
   cancelDeadlineTime: '21:00',
+  cancelDeadlineHours: 24,
   defaultTags: [], // 新发起比赛时默认带上的标签
   checkinEnabled: true, // 新发起比赛默认开启到场签到
   finesEnabled: true, // 关闭后整个球队不产生任何罚款、不拦截报名
@@ -98,6 +103,13 @@ function cancelPhase(game, now) {
   return 'penalty'
 }
 
+// 不同原因的罚款金额；早期比赛只有 fineCents，就都用它
+function fineFor(game, reason) {
+  if (reason === 'no_show') return game.fineNoShowCents ?? game.fineCents
+  if (reason === 'late_cancel' || reason === 'no_forward') return game.fineLateCancelCents ?? game.fineCents
+  return game.fineCents
+}
+
 function checkinOpensAt(game) {
   return game.startAt - game.checkinOpenBeforeMin * MIN
 }
@@ -159,6 +171,7 @@ module.exports = {
   levelOptions,
   validLevel,
   cancelPhase,
+  fineFor,
   checkinOpensAt,
   canCheckinAt,
   lateAt,

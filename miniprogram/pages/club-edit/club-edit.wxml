@@ -47,17 +47,46 @@
       <switch checked="{{finesEnabled}}" data-key="finesEnabled" bindchange="onSwitch" color="#111" />
     </view>
     <view wx:if="{{!finesEnabled}}" class="hint">关闭后不产生任何罚款（迟到、未到、临时取消都不罚），也不会因未付罚款拦截报名；基金账本照常可用</view>
-    <view wx:if="{{finesEnabled}}" class="field">
-      <text class="field-label">罚款金额（$）</text>
-      <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
-    </view>
+    <block wx:if="{{finesEnabled}}">
+      <view class="field">
+        <text class="field-label">迟到罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
+      </view>
+      <view class="field">
+        <text class="field-label">未到罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineNoShowDollars}}" data-key="fineNoShowDollars" bindinput="onInput" />
+      </view>
+      <view class="field">
+        <text class="field-label">临时取消罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineLateCancelDollars}}" data-key="fineLateCancelDollars" bindinput="onInput" />
+      </view>
+    </block>
     <view wx:for="{{numFields}}" wx:key="key" class="field">
       <text class="field-label">{{item.label}}（{{item.unit}}）</text>
       <input class="field-value" type="number" value="{{nums[item.key]}}" data-key="nums.{{item.key}}" bindinput="onInput" />
     </view>
-    <picker mode="time" value="{{cancelDeadlineTime}}" data-key="cancelDeadlineTime" bindchange="onPick">
-      <view class="field"><text class="field-label">取消不转发罚款截止时刻</text><text class="field-value">{{cancelDeadlineTime}} ›</text></view>
+    <picker range="{{cancelModes}}" value="{{cancelModeIndex}}" data-key="cancelModeIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">取消不转发罚款截止</text><text class="field-value small">{{cancelModes[cancelModeIndex]}} ›</text></view>
     </picker>
+    <block wx:if="{{cancelModeIndex === 0}}">
+      <view class="field">
+        <text class="field-label">比赛前几天</text>
+        <input class="field-value" type="number" value="{{cancelDays}}" data-key="cancelDays" bindinput="onInput" />
+      </view>
+      <picker mode="time" value="{{cancelDeadlineTime}}" data-key="cancelDeadlineTime" bindchange="onPick">
+        <view class="field"><text class="field-label">截止时刻</text><text class="field-value">{{cancelDeadlineTime}} ›</text></view>
+      </picker>
+    </block>
+    <view wx:else class="field">
+      <text class="field-label">开场前几小时</text>
+      <input class="field-value" type="number" value="{{cancelHours}}" data-key="cancelHours" bindinput="onInput" />
+    </view>
+    <view class="hint">截止后取消报名，必须转发到群里找人递补</view>
+    <view class="field">
+      <text class="field-label">临时取消（开场前几小时内）</text>
+      <input class="field-value" type="digit" value="{{penaltyHours}}" data-key="penaltyHours" bindinput="onInput" />
+    </view>
+    <view class="hint">这个时间内取消算临时取消{{finesEnabled ? '，要罚款' : ''}}。想要“截止后取消就罚款”，把它设成和截止相同的小时数</view>
     <view class="field">
       <text class="field-label">默认开启到场签到</text>
       <switch checked="{{checkinEnabled}}" data-key="checkinEnabled" bindchange="onSwitch" color="#111" />

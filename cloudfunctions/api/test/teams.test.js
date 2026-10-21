@@ -505,3 +505,54 @@ test('self-rated levels: club config, per-club value, shown on roster, hidden wh
   await api(a, 'setMyLevel', { clubId, level: '' }) // 清除
   assert.match(await apiErr(o, 'updateClub', { clubId, settings: { rating: { mode: 'labels', labels: 'x' } } }), /2–6/)
 })
+
+test('separate fine amounts per reason and an hours-before cancel deadline', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-08', '19:00', tz) // 周四 7pm 场
+  fake.setNow(startAt - 3 * 24 * 60 * MIN)
+  for (const id of ['o', 'late', 'noshow', 'cancel', 'fwd']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'B' })
+  await api('o', 'updateClub', {
+    clubId,
+    settings: {
+      fineCents: 300, fineNoShowCents: 1000, fineLateCancelCents: 800,
+      cancelDeadlineMode: 'hours', cancelDeadlineHours: 24, penaltyWindowMin: 24 * 60,
+    },
+  })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'Gym', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-08', time: '19:00', timezone: tz, venueId } })
+  const g = (await api('o', 'getGame', { gameId })).game
+  assert.strictEqual(g.local.cancelDeadline, '10月7日(周三) 19:00') // 开场前 24 小时
+  assert.deepStrictEqual([g.fineCents, g.fineNoShowCents, g.fineLateCancelCents], [300, 1000, 800])
+  for (const id of ['late', 'noshow', 'cancel', 'fwd']) await api(id, 'signup', { gameId, inviter: 'o' })
+
+  // 截止前取消：不罚；截止后（=临时取消窗口）取消：罚 $8
+  fake.setNow(startAt - 30 * 60 * MIN)
+  assert.deepStrictEqual(await api('fwd', 'cancelSignup', { gameId }), { phase: 'free', fined: false })
+  fake.setNow(startAt - 20 * 60 * MIN)
+  assert.deepStrictEqual(await api('cancel', 'cancelSignup', { gameId }), { phase: 'penalty', fined: true })
+
+  // 迟到 $3、未到 $10
+  fake.setNow(startAt + 15 * MIN)
+  await api('late', 'checkin', { gameId, ...VENUE })
+  await api('o', 'getGame', { gameId })
+  const amounts = Object.fromEntries(
+    (await api('o', 'listFines', { clubId, status: 'pending' })).fines.map((f) => [f.openid, [f.reasonText, f.amountCents]]),
+  )
+  assert.deepStrictEqual(amounts, { late: ['迟到', 300], noshow: ['未到', 1000], cancel: ['临时取消', 800] })
+
+  // 管理员把未到改成迟到：金额跟着变成 $3
+  await api('o', 'setAttendance', { gameId, target: 'noshow', attendance: 'late' })
+  const f = (await api('o', 'listFines', { clubId, status: 'pending' })).fines.find((x) => x.openid === 'noshow')
+  assert.deepStrictEqual([f.reasonText, f.amountCents], ['迟到', 300])
+
+  // 表单回显三种金额
+  assert.deepStrictEqual(
+    ['fineCents', 'fineNoShowCents', 'fineLateCancelCents'].map((k) => (fake.store.games.get(gameId) || {})[k]),
+    [300, 1000, 800],
+  )
+  assert.match(await apiErr('o', 'updateClub', { clubId, settings: { cancelDeadlineMode: 'week' } }), /方式无效/)
+})

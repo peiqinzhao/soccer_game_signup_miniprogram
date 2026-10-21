@@ -36,9 +36,24 @@ function defaultSignupOpens(date: string) {
   return { ...open, future: new Date(`${open.date}T${open.time}:00`).getTime() > Date.now() }
 }
 
-// 按球队设置算默认截止：比赛前 N 天的固定时刻
-function defaultDeadline(date: string, s: ClubSettings) {
+// 按球队设置算默认截止：比赛前 N 天的固定时刻，或开场前 N 小时
+function defaultDeadline(date: string, time: string, s: ClubSettings) {
+  if (s.cancelDeadlineMode === 'hours') {
+    const t = new Date(`${date}T${time}:00`).getTime() - (s.cancelDeadlineHours ?? 24) * 3600 * 1000
+    const d = new Date(t)
+    const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`)
+    return { date: fmtDate(t), time: `${pad(d.getHours())}:${pad(d.getMinutes())}` }
+  }
   return { date: fmtDate(parseDate(date).getTime() - s.cancelDeadlineDaysBefore * DAY), time: s.cancelDeadlineTime }
+}
+
+function deadlineRuleText(s: ClubSettings): string {
+  const rule =
+    s.cancelDeadlineMode === 'hours'
+      ? `开场前 ${s.cancelDeadlineHours ?? 24} 小时`
+      : `比赛前 ${s.cancelDeadlineDaysBefore} 天 ${s.cancelDeadlineTime}`
+  const penalty = `开场前 ${s.penaltyWindowMin / 60} 小时内取消算临时取消${s.finesEnabled === false ? '' : '并罚款'}`
+  return `这个时间之后取消报名，必须转发到群里找人递补；${penalty}。默认${rule}，点日期或时间可修改。`
 }
 
 function tzIndexOf(tz: string): number {
@@ -81,7 +96,10 @@ Page({
     teamsRule: '',
     tagsText: '', // 可选标签，逗号或空格分隔
     lateGraceMin: '10',
-    fineDollars: '5',
+    fineDollars: '5', // 迟到
+    fineNoShowDollars: '5',
+    fineLateCancelDollars: '5',
+    deadlineHint: '',
     scheduled: false,
     signupDate: '',
     signupTime: '20:00',
@@ -141,6 +159,11 @@ Page({
       tagsText: (!this.data.gameId && s.defaultTags && s.defaultTags.length ? s.defaultTags : (f && f.tags) || []).join('，'),
       lateGraceMin: String(f ? f.lateGraceMin : s.lateGraceMin),
       fineDollars: String((f ? f.fineCents : s.fineCents) / 100),
+      fineNoShowDollars: String((f ? f.fineNoShowCents ?? f.fineCents : s.fineNoShowCents ?? s.fineCents) / 100),
+      fineLateCancelDollars: String(
+        (f ? f.fineLateCancelCents ?? f.fineCents : s.fineLateCancelCents ?? s.fineCents) / 100,
+      ),
+      deadlineHint: deadlineRuleText(s),
     })
     // 定时开放报名：新比赛默认开启（比赛前 3 天 20:00，已过则不开启）；编辑/复制时沿用原设置
     const defOpen = defaultSignupOpens(this.data.date)
@@ -154,7 +177,7 @@ Page({
     })
     this.updateFormat()
     // 编辑已有比赛时用它自己的截止时间；和默认值一样就当作没改过
-    const def = defaultDeadline(this.data.date, s)
+    const def = defaultDeadline(this.data.date, this.data.time, s)
     const cur = f && f.cancelDeadline ? f.cancelDeadline : def
     this.setData({
       deadlineDate: cur.date,
@@ -181,6 +204,7 @@ Page({
     this.setData({ [key]: key.endsWith('Index') ? Number(v) : v })
     if (key === 'deadlineDate' || key === 'deadlineTime') this.setData({ deadlineEdited: true })
     if (key === 'signupDate' || key === 'signupTime') this.setData({ signupEdited: true })
+    if (key === 'time') this.syncDeadline()
     if (key === 'date') {
       this.syncDeadline()
       this.syncSignupOpens()
@@ -197,7 +221,7 @@ Page({
 
   syncDeadline() {
     if (this.data.deadlineEdited || !this.data.settings) return
-    const def = defaultDeadline(this.data.date, this.data.settings)
+    const def = defaultDeadline(this.data.date, this.data.time, this.data.settings)
     this.setData({ deadlineDate: def.date, deadlineTime: def.time })
   },
 
@@ -287,6 +311,8 @@ Page({
       tagsText: (t.tags || []).join('，'),
       lateGraceMin: String(t.lateGraceMin),
       fineDollars: String(t.fineCents / 100),
+      fineNoShowDollars: String((t.fineNoShowCents ?? t.fineCents) / 100),
+      fineLateCancelDollars: String((t.fineLateCancelCents ?? t.fineCents) / 100),
       scheduled: !!t.signupOpens,
       scheduledTouched: true,
       signupEdited: !!t.signupOpens,
@@ -350,6 +376,8 @@ Page({
       tags: splitTags(d.tagsText),
       lateGraceMin: Number(d.lateGraceMin),
       fineCents: Math.round(Number(d.fineDollars) * 100),
+      fineNoShowCents: Math.round(Number(d.fineNoShowDollars) * 100),
+      fineLateCancelCents: Math.round(Number(d.fineLateCancelDollars) * 100),
       signupOpens: d.scheduled ? { daysBefore, time: d.signupTime } : null,
     }
     const res = await run<{ templates: GameTemplate[] }>('saveTemplate', { clubId: d.clubId, template }, '保存中')
@@ -384,6 +412,8 @@ Page({
       tags: splitTags(d.tagsText),
       lateGraceMin: Number(d.lateGraceMin),
       fineCents: Math.round(Number(d.fineDollars) * 100),
+      fineNoShowCents: Math.round(Number(d.fineNoShowDollars) * 100),
+      fineLateCancelCents: Math.round(Number(d.fineLateCancelDollars) * 100),
       signupOpens: d.scheduled ? { date: d.signupDate, time: d.signupTime } : null,
       // 没改过就交给服务端按球队设置计算（和比赛时区一致）
       cancelDeadline: d.deadlineEdited ? { date: d.deadlineDate, time: d.deadlineTime } : null,

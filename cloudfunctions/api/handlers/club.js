@@ -23,9 +23,12 @@ function cleanSettings(input = {}) {
     durationMin: [15, 600],
     lateGraceMin: [0, 120],
     fineCents: [0, 100000],
+    fineNoShowCents: [0, 100000],
+    fineLateCancelCents: [0, 100000],
+    cancelDeadlineHours: [0, 168],
     checkinRadiusM: [30, 2000],
     checkinOpenBeforeMin: [0, 240],
-    penaltyWindowMin: [0, 24 * 60],
+    penaltyWindowMin: [0, 7 * 24 * 60],
     cancelDeadlineDaysBefore: [0, 7],
   }
   for (const [k, [lo, hi]] of Object.entries(ints)) {
@@ -37,6 +40,10 @@ function cleanSettings(input = {}) {
   if (input.timezone !== undefined) {
     if (!isValidTimeZone(input.timezone)) throw new UserError('时区无效')
     s.timezone = input.timezone
+  }
+  if (input.cancelDeadlineMode !== undefined) {
+    if (!['day', 'hours'].includes(input.cancelDeadlineMode)) throw new UserError('取消截止方式无效')
+    s.cancelDeadlineMode = input.cancelDeadlineMode
   }
   if (input.cancelDeadlineTime !== undefined) {
     if (!/^\d{2}:\d{2}$/.test(input.cancelDeadlineTime)) throw new UserError('截止时间格式应为 HH:mm')
@@ -165,7 +172,7 @@ async function updateClub({ openid, clubId, name, venmo, settings }) {
     await db
       .collection('games')
       .where({ clubId, status: 'active', settleDone: _.neq(true) })
-      .update({ data: { fineCents: 0 } })
+      .update({ data: { fineCents: 0, fineNoShowCents: 0, fineLateCancelCents: 0 } })
   }
   return {}
 }
@@ -268,6 +275,8 @@ function cleanTemplate(t) {
     })(),
     lateGraceMin: int(t.lateGraceMin, 0, 120, '迟到宽限'),
     fineCents: int(t.fineCents, 0, 100000, '罚款金额'),
+    fineNoShowCents: int(t.fineNoShowCents ?? t.fineCents, 0, 100000, '未到罚款'),
+    fineLateCancelCents: int(t.fineLateCancelCents ?? t.fineCents, 0, 100000, '临时取消罚款'),
     signupOpens: t.signupOpens
       ? { daysBefore: int(t.signupOpens.daysBefore, 0, 14, '开放报名天数'), time: hhmm(t.signupOpens.time, '开放时间') }
       : null,

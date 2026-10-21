@@ -21,6 +21,10 @@ export interface ClubSettings {
   penaltyWindowMin: number
   cancelDeadlineDaysBefore: number
   cancelDeadlineTime: string
+  cancelDeadlineMode?: 'day' | 'hours'
+  cancelDeadlineHours?: number
+  fineNoShowCents?: number
+  fineLateCancelCents?: number
   defaultTags?: string[]
   checkinEnabled?: boolean
   finesEnabled?: boolean
@@ -53,6 +57,8 @@ export interface Game {
   capacity: number
   registeredCount: number
   fineCents: number
+  fineNoShowCents?: number
+  fineLateCancelCents?: number
   cancelDeadlineAt: number
   signupOpensAt: number
   penaltyWindowMin: number
@@ -183,6 +189,8 @@ export interface GameForm {
   tags: string[]
   lateGraceMin: number
   fineCents: number
+  fineNoShowCents?: number
+  fineLateCancelCents?: number
   signupOpens: { date: string; time: string } | null
   cancelDeadline: { date: string; time: string } | null
 }
@@ -257,6 +265,8 @@ export interface GameTemplate {
   tags?: string[]
   lateGraceMin: number
   fineCents: number
+  fineNoShowCents?: number
+  fineLateCancelCents?: number
   signupOpens: { daysBefore: number; time: string } | null
 }
 

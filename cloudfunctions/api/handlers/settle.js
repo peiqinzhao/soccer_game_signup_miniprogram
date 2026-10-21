@@ -45,14 +45,15 @@ async function settleGame(game) {
   for (const reg of regs) {
     const attendance = rules.attendanceFor(reg.checkinAt, game)
     // 先生成罚款再记出勤：中途被打断时，这个人下次还会被处理（罚款按 ID 去重）
-    if (attendance !== 'on_time' && game.fineCents > 0 && !rules.isLatePromotion(reg, game)) {
+    const amount = rules.fineFor(game, attendance)
+    if (attendance !== 'on_time' && amount > 0 && !rules.isLatePromotion(reg, game)) {
       await createFine({
         clubId: game.clubId,
         gameId: game._id,
         openid: reg.openid,
         kind: 'attendance',
         reason: attendance,
-        amountCents: game.fineCents,
+        amountCents: amount,
       })
     }
     await db.collection('registrations').doc(reg._id).update({ data: { attendance } })

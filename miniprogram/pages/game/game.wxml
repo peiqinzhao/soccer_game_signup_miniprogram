@@ -12,7 +12,7 @@
     <view class="sub small" wx:if="{{d.game.venue.address}}">{{d.game.venue.address}}</view>
     <view class="sub">⚽ {{formatStr}}</view>
     <view class="sub small mt">
-      {{d.club.name}}<text wx:if="{{d.game.checkinEnabled !== false}}"> · 开赛 {{d.game.lateGraceMin}} 分钟后未签到记迟到<text wx:if="{{d.game.fineCents > 0}}">，罚 {{fineText}}</text></text>
+      {{d.club.name}}<text wx:if="{{d.game.checkinEnabled !== false}}"> · 开赛 {{d.game.lateGraceMin}} 分钟后未签到记迟到<text wx:if="{{d.game.fineCents > 0}}">，罚 {{fineText}}</text><text wx:if="{{(d.game.fineNoShowCents || 0) > 0}}">；未到罚 {{noShowFineText}}</text></text>
     </view>
     <view class="sub small">取消不转发罚款截止：{{d.game.local.cancelDeadline}}</view>
     <view wx:if="{{d.game.note}}" class="mt" style="white-space: pre-wrap;">{{d.game.note}}</view>
@@ -231,7 +231,7 @@
     <view class="dialog-body">
       <block wx:if="{{shareDialog.phase === 'free'}}">推荐转发到群里，让大家知道有空位。</block>
       <block wx:else>已过取消不转发罚款截止时间，<text class="bold">必须</text>转发到群里，方便没报上的人递补。</block>
-      <view wx:if="{{shareDialog.fined}}" class="bad mt">距开赛不足 1 小时取消，已记为临时取消并产生罚款，管理员可视情况豁免。</view>
+      <view wx:if="{{shareDialog.fined}}" class="bad mt">距开赛不足 {{d.game.penaltyWindowMin / 60}} 小时取消，已记为临时取消并产生罚款，管理员可视情况豁免。</view>
     </view>
     <button class="btn" open-type="share">转发到群</button>
     <view class="sub small mt" style="text-align:center;" bindtap="closeShareDialog">

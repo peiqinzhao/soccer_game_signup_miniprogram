@@ -10,8 +10,6 @@ const NUM_FIELDS = [
   { key: 'lateGraceMin', label: '迟到宽限', unit: '分钟' },
   { key: 'checkinRadiusM', label: '新场地签到范围', unit: '米' },
   { key: 'checkinOpenBeforeMin', label: '签到开放（开赛前）', unit: '分钟' },
-  { key: 'penaltyWindowMin', label: '临时取消罚款（开赛前）', unit: '分钟' },
-  { key: 'cancelDeadlineDaysBefore', label: '取消不转发罚款截止（比赛前）', unit: '天' },
 ]
 
 Page({
@@ -22,8 +20,15 @@ Page({
     isOwner: false,
     name: '',
     venmo: '',
-    fineDollars: '5',
+    fineDollars: '5', // 迟到
+    fineNoShowDollars: '5',
+    fineLateCancelDollars: '5',
+    cancelModes: ['比赛前 N 天的固定时刻', '开场前 N 小时'],
+    cancelModeIndex: 0,
+    cancelDays: '1',
     cancelDeadlineTime: '21:00',
+    cancelHours: '24',
+    penaltyHours: '1', // 临时取消窗口，存储时换成分钟
     defaultTagsText: '',
     checkinEnabled: true,
     finesEnabled: true,
@@ -64,7 +69,13 @@ Page({
       name: c.club.name,
       venmo: c.club.venmo,
       fineDollars: String(s.fineCents / 100),
+      fineNoShowDollars: String((s.fineNoShowCents ?? s.fineCents) / 100),
+      fineLateCancelDollars: String((s.fineLateCancelCents ?? s.fineCents) / 100),
+      cancelModeIndex: s.cancelDeadlineMode === 'hours' ? 1 : 0,
+      cancelDays: String(s.cancelDeadlineDaysBefore),
       cancelDeadlineTime: s.cancelDeadlineTime,
+      cancelHours: String(s.cancelDeadlineHours ?? 24),
+      penaltyHours: String(s.penaltyWindowMin / 60),
       defaultTagsText: (s.defaultTags || []).join('，'),
       checkinEnabled: s.checkinEnabled !== false,
       finesEnabled: s.finesEnabled !== false,
@@ -144,7 +155,13 @@ Page({
     const settings: Record<string, unknown> = {
       timezone: TIMEZONES[d.tzIndex].id,
       fineCents: Math.round(Number(d.fineDollars) * 100),
+      fineNoShowCents: Math.round(Number(d.fineNoShowDollars) * 100),
+      fineLateCancelCents: Math.round(Number(d.fineLateCancelDollars) * 100),
+      cancelDeadlineMode: d.cancelModeIndex === 1 ? 'hours' : 'day',
+      cancelDeadlineDaysBefore: Number(d.cancelDays),
       cancelDeadlineTime: d.cancelDeadlineTime,
+      cancelDeadlineHours: Number(d.cancelHours),
+      penaltyWindowMin: Math.round(Number(d.penaltyHours) * 60),
       defaultTags: d.defaultTagsText,
       checkinEnabled: d.checkinEnabled,
       finesEnabled: d.finesEnabled,

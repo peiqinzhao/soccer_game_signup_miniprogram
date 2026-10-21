@@ -136,7 +136,9 @@ Page({
     checkinNotYet: false,
     checkinOpensText: '',
     unpaidText: '',
-    fineText: '',
+    fineText: '', // 迟到罚款
+    noShowFineText: '',
+    lateCancelFine: 0,
     myCheckinText: '',
     notifyText: '', // 管理员看的通知覆盖情况
     formatStr: '',
@@ -227,6 +229,8 @@ Page({
       checkinOpensText: fmtTime(d.me.checkinOpensAt),
       unpaidText: d.me.unpaidCents > 0 ? money(d.me.unpaidCents) : '',
       fineText: money(g.fineCents),
+      noShowFineText: money(g.fineNoShowCents ?? g.fineCents),
+      lateCancelFine: g.fineLateCancelCents ?? g.fineCents,
       formatStr: formatText(g.teamSize || 8, g.teamCount || 3),
       teamSizesText: d.teams ? d.teams.teams.map((t) => `${t.name} 队 ${t.members.length} 人`).join(' · ') : '',
       tagStats: statParts.join(' · '),
@@ -362,9 +366,9 @@ Page({
         ? '确定取消报名？'
         : phase === 'warn'
           ? `已过取消不转发罚款截止时间（${g.local.cancelDeadline}）。取消后必须转发到群里，方便别人递补。`
-          : g.fineCents > 0
-            ? `距开赛不足 ${g.penaltyWindowMin} 分钟，取消算临时取消，产生 ${money(g.fineCents)} 罚款（管理员可视情况豁免）。仍要取消？`
-            : `距开赛不足 ${g.penaltyWindowMin} 分钟，取消后请务必转发到群里，方便别人递补。仍要取消？`
+          : this.data.lateCancelFine > 0
+            ? `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消算临时取消，产生 ${money(this.data.lateCancelFine)} 罚款（管理员可视情况豁免）。仍要取消？`
+            : `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消后请务必转发到群里，方便别人递补。仍要取消？`
     const ok = await wx.showModal({
       title: isWaitlist ? '退出替补' : '取消报名',
       content,
@@ -789,13 +793,14 @@ Page({
         },
       })
     }
-    if (status === 'cancelled' && phase === 'warn' && d.game.fineCents > 0 && row && !row.fineText) {
+    const noFwdFine = d.game.fineLateCancelCents ?? d.game.fineCents
+    if (status === 'cancelled' && phase === 'warn' && noFwdFine > 0 && row && !row.fineText) {
       items.push({
-        label: `罚款：取消未转发（${money(d.game.fineCents)}）`,
+        label: `罚款：取消未转发（${money(noFwdFine)}）`,
         run: async () => {
           const r = await wx.showModal({
             title: '取消未转发',
-            content: `确认 ${name} 取消报名后没有转发到群里？将产生 ${money(d.game.fineCents)} 罚款，可在罚款管理里豁免。`,
+            content: `确认 ${name} 取消报名后没有转发到群里？将产生 ${money(noFwdFine)} 罚款，可在罚款管理里豁免。`,
           })
           if (!r.confirm) return null
           const ok = await run('fineNoForward', { gameId: this.data.id, target: openid }, '处理中')

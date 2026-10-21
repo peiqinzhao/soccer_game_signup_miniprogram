@@ -101,15 +101,25 @@
         </picker>
       </view>
     </view>
-    <view class="hint">这个时间之后取消报名，必须转发到群里找人递补；开赛前 {{settings.penaltyWindowMin}} 分钟内取消算临时取消并罚款。默认比赛前 {{settings.cancelDeadlineDaysBefore}} 天 {{settings.cancelDeadlineTime}}，点日期或时间可修改。</view>
+    <view class="hint">{{deadlineHint}}</view>
     <view wx:if="{{checkinEnabled}}" class="field">
       <text class="field-label">迟到宽限（分钟）</text>
       <input class="field-value" type="number" value="{{lateGraceMin}}" data-key="lateGraceMin" bindinput="onInput" />
     </view>
-    <view wx:if="{{settings.finesEnabled !== false}}" class="field">
-      <text class="field-label">罚款金额（$）</text>
-      <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
-    </view>
+    <block wx:if="{{settings.finesEnabled !== false}}">
+      <view wx:if="{{checkinEnabled}}" class="field">
+        <text class="field-label">迟到罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineDollars}}" data-key="fineDollars" bindinput="onInput" />
+      </view>
+      <view wx:if="{{checkinEnabled}}" class="field">
+        <text class="field-label">未到罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineNoShowDollars}}" data-key="fineNoShowDollars" bindinput="onInput" />
+      </view>
+      <view class="field">
+        <text class="field-label">临时取消罚款（$）</text>
+        <input class="field-value" type="digit" value="{{fineLateCancelDollars}}" data-key="fineLateCancelDollars" bindinput="onInput" />
+      </view>
+    </block>
   </view>
 
   <view class="card">
