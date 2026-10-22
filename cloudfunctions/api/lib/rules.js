@@ -16,7 +16,7 @@ const DEFAULT_SETTINGS = {
   checkinOpenBeforeMin: 30,
   penaltyWindowMin: 60, // 开赛前多少分钟内取消算临时取消（罚款）
   // 取消截止：day = 比赛前 N 天的固定时刻；hours = 开场前 N 小时
-  cancelDeadlineMode: 'day',
+  cancelDeadlineMode: 'hours',
   cancelDeadlineDaysBefore: 1,
   cancelDeadlineTime: '21:00',
   cancelDeadlineHours: 24,

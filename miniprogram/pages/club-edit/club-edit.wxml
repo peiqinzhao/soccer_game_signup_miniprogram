@@ -65,28 +65,16 @@
       <text class="field-label">{{item.label}}（{{item.unit}}）</text>
       <input class="field-value" type="number" value="{{nums[item.key]}}" data-key="nums.{{item.key}}" bindinput="onInput" />
     </view>
-    <picker range="{{cancelModes}}" value="{{cancelModeIndex}}" data-key="cancelModeIndex" bindchange="onPick">
-      <view class="field"><text class="field-label">取消不转发罚款截止</text><text class="field-value small">{{cancelModes[cancelModeIndex]}} ›</text></view>
-    </picker>
-    <block wx:if="{{cancelModeIndex === 0}}">
-      <view class="field">
-        <text class="field-label">比赛前几天</text>
-        <input class="field-value" type="number" value="{{cancelDays}}" data-key="cancelDays" bindinput="onInput" />
-      </view>
-      <picker mode="time" value="{{cancelDeadlineTime}}" data-key="cancelDeadlineTime" bindchange="onPick">
-        <view class="field"><text class="field-label">截止时刻</text><text class="field-value">{{cancelDeadlineTime}} ›</text></view>
-      </picker>
-    </block>
-    <view wx:else class="field">
-      <text class="field-label">开场前几小时</text>
-      <input class="field-value" type="number" value="{{cancelHours}}" data-key="cancelHours" bindinput="onInput" />
-    </view>
-    <view class="hint">截止后取消报名，必须转发到群里找人递补</view>
     <view class="field">
-      <text class="field-label">临时取消（开场前几小时内）</text>
+      <text class="field-label">提醒转发（开场前几小时内取消）</text>
+      <input class="field-value" type="digit" value="{{cancelHours}}" data-key="cancelHours" bindinput="onInput" />
+    </view>
+    <view class="hint">这段时间内取消，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“取消未转发”。<text wx:if="{{legacyDeadline}}">（原来是“{{legacyDeadline}}”，保存后改为按小时计算）</text></view>
+    <view class="field">
+      <text class="field-label">临时取消（开场前几小时内取消）</text>
       <input class="field-value" type="digit" value="{{penaltyHours}}" data-key="penaltyHours" bindinput="onInput" />
     </view>
-    <view class="hint">开场前这么多小时内取消，算临时取消{{finesEnabled ? '并罚款' : ''}}。例：截止设 24 小时、这里设 1 小时，则开场前 24～1 小时取消只需转发、不罚款，1 小时内取消才罚款；这里也设 24 小时，则过了截止再取消就直接罚款。</view>
+    <view class="hint">这段时间内取消算临时取消{{finesEnabled ? '，自动罚款（管理员可豁免）' : ''}}。例：提醒转发 24、临时取消 1。</view>
     <view class="field">
       <text class="field-label">默认开启到场签到</text>
       <switch checked="{{checkinEnabled}}" data-key="checkinEnabled" bindchange="onSwitch" color="#111" />

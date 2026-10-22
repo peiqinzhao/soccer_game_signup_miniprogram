@@ -52,13 +52,25 @@ function buildGameFields(club, venue, f) {
   const startAt = T.zonedToUtcMs(f.date, f.time, tz)
   const durationMin = intIn(f.durationMin ?? s.durationMin, 15, 600, '时长')
   const lateGraceMin = intIn(f.lateGraceMin ?? s.lateGraceMin, 0, 120, '迟到宽限')
-  const cancelDeadlineAt = f.cancelDeadline
-    ? T.zonedToUtcMs(f.cancelDeadline.date, f.cancelDeadline.time, tz)
-    : s.cancelDeadlineMode === 'hours'
-      ? startAt - (s.cancelDeadlineHours ?? 24) * 60 * MIN
-      : T.deadlineBefore(startAt, tz, s.cancelDeadlineDaysBefore, s.cancelDeadlineTime)
+  // 提醒转发：开场前 N 小时内取消要转发（表单给小时数；旧客户端给具体日期时间；都没有用球队默认）
+  const forwardHours = f.forwardHours ?? null
+  if (forwardHours !== null && !(Number(forwardHours) >= 0 && Number(forwardHours) <= 168)) {
+    throw new UserError('提醒转发需在开场前 0–168 小时之间')
+  }
+  const cancelDeadlineAt =
+    forwardHours !== null
+      ? startAt - Math.round(Number(forwardHours) * 60) * MIN
+      : f.cancelDeadline
+        ? T.zonedToUtcMs(f.cancelDeadline.date, f.cancelDeadline.time, tz)
+        : s.cancelDeadlineMode === 'hours'
+          ? startAt - (s.cancelDeadlineHours ?? 24) * 60 * MIN
+          : T.deadlineBefore(startAt, tz, s.cancelDeadlineDaysBefore, s.cancelDeadlineTime)
+  const penaltyHours = f.penaltyHours ?? null
+  if (penaltyHours !== null && !(Number(penaltyHours) >= 0 && Number(penaltyHours) <= 168)) {
+    throw new UserError('临时取消需在开场前 0–168 小时之间')
+  }
   const signupOpensAt = f.signupOpens ? T.zonedToUtcMs(f.signupOpens.date, f.signupOpens.time, tz) : 0
-  if (cancelDeadlineAt > startAt) throw new UserError('取消不转发罚款截止时间不能晚于开赛时间')
+  if (cancelDeadlineAt > startAt) throw new UserError('提醒转发的时间不能晚于开赛时间')
   if (signupOpensAt >= startAt) throw new UserError('报名开放时间需早于开赛时间')
   // 标题留空时自动生成，如“周日 · MTV Garfield”
   const customTitle = String(f.title || '').trim().slice(0, 30)
@@ -90,7 +102,7 @@ function buildGameFields(club, venue, f) {
         : intIn(f.fineLateCancelCents ?? s.fineLateCancelCents ?? s.fineCents, 0, 100000, '临时取消罚款'),
     cancelDeadlineAt,
     signupOpensAt,
-    penaltyWindowMin: s.penaltyWindowMin,
+    penaltyWindowMin: penaltyHours !== null ? Math.round(Number(penaltyHours) * 60) : s.penaltyWindowMin,
     checkinOpenBeforeMin: s.checkinOpenBeforeMin,
     venue: {
       id: venue._id,
@@ -201,6 +213,8 @@ async function gameForm({ openid, clubId, gameId, copyLast }) {
     fineLateCancelCents: src.fineLateCancelCents ?? src.fineCents,
     signupOpens: signup,
     cancelDeadline: gameId ? deadline : null, // 复制时用默认规则重新算
+    forwardHours: gameId ? Math.round(((src.startAt - src.cancelDeadlineAt) / (60 * MIN)) * 10) / 10 : null,
+    penaltyHours: gameId ? src.penaltyWindowMin / 60 : null,
   }
   if (!gameId) {
     // 按周顺延，直到开赛时间在未来
@@ -352,6 +366,33 @@ async function getGame({ openid, gameId }) {
       .filter((r) => r.status === status)
       .map(view)
       .sort((a, b) => a[key] - b[key])
+  // 报名后取消的人：之后第一个拿到名额的人（递补或新报名）算补上了他；多人取消按先后依次对应
+  const refill = {}
+  const events = [
+    ...regs.filter((r) => r.spotAt > 0).map((r) => ({ t: r.spotAt, kind: 'gain', r })),
+    ...regs.filter((r) => r.status === 'cancelled' && r.spotAt > 0).map((r) => ({ t: r.cancelledAt, kind: 'cancel', r })),
+  ].sort((a, b) => a.t - b.t || (a.kind === 'cancel' ? -1 : 1))
+  const holes = []
+  for (const e of events) {
+    if (e.kind === 'cancel') {
+      holes.push(e.r)
+      refill[e.r.openid] = ''
+    } else if (holes.length) {
+      const hole = holes.shift()
+      refill[hole.openid] = (profiles[e.r.openid] || {}).name || '有人'
+    }
+  }
+  const cancelled = pick('cancelled', 'cancelledAt').map((v) => {
+    const r = regs.find((x) => x.openid === v.openid)
+    const fromRoster = r.spotAt > 0 && r.cancelledFrom !== 'waitlist'
+    return { ...v, cancelledFrom: fromRoster ? 'registered' : 'waitlist', refilledBy: fromRoster ? refill[v.openid] || '' : '' }
+  })
+  const cancelStats = {
+    fromRoster: cancelled.filter((c) => c.cancelledFrom === 'registered').length,
+    refilled: cancelled.filter((c) => c.cancelledFrom === 'registered' && c.refilledBy).length,
+    fromWaitlist: cancelled.filter((c) => c.cancelledFrom === 'waitlist').length,
+  }
+
   const mine = regs.find((r) => r.openid === openid)
   // 本场罚款，只给管理员看
   const fines = isAdmin
@@ -396,7 +437,8 @@ async function getGame({ openid, gameId }) {
     },
     registered: pick('registered', 'spotAt'),
     waitlist: pick('waitlist', 'waitlistAt'),
-    cancelled: pick('cancelled', 'cancelledAt'),
+    cancelled,
+    cancelStats,
     me: {
       openid,
       isMember: !!member,

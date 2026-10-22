@@ -217,7 +217,22 @@ test('scheduled signup opening and default cancel deadline', async () => {
     form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, signupOpens: { date: '2026-10-01', time: '20:00' } },
   })
   const g = await api('o', 'getGame', { gameId })
-  assert.strictEqual(g.game.local.cancelDeadline, '10月3日(周六) 21:00')
+  assert.strictEqual(g.game.local.cancelDeadline, '10月3日(周六) 10:00') // 新球队默认：开场前 24 小时提醒转发
+  // 老球队（设置里没有 cancelDeadlineMode）仍按“前一天 21:00”，直到重新保存设置
+  delete fake.store.clubs.get(clubId).settings.cancelDeadlineMode
+  const { gameId: old } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-03', time: '10:00', timezone: tz, venueId } })
+  assert.strictEqual((await api('o', 'getGame', { gameId: old })).game.local.cancelDeadline, '10月2日(周五) 21:00')
+  // 表单直接给小时数
+  const { gameId: hrs } = await api('o', 'saveGame', {
+    clubId,
+    form: { date: '2026-10-02', time: '10:00', timezone: tz, venueId, forwardHours: 13, penaltyHours: 2 },
+  })
+  const gh = (await api('o', 'getGame', { gameId: hrs })).game
+  assert.deepStrictEqual([gh.local.cancelDeadline, gh.penaltyWindowMin], ['10月1日(周四) 21:00', 120])
+  assert.deepStrictEqual(
+    ((f) => [f.forwardHours, f.penaltyHours])((await api('o', 'gameForm', { clubId, gameId: hrs })).form),
+    [13, 2],
+  )
   assert.match(await apiErr('x', 'signup', { gameId, inviter: 'o' }), /10月1日\(周四\) 20:00 开放/)
   fake.setNow(T.zonedToUtcMs('2026-10-01', '20:00', tz))
   assert.deepStrictEqual(await api('x', 'signup', { gameId, inviter: 'o' }), { status: 'registered' })

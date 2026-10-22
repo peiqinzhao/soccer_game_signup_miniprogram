@@ -556,3 +556,34 @@ test('separate fine amounts per reason and an hours-before cancel deadline', asy
   )
   assert.match(await apiErr('o', 'updateClub', { clubId, settings: { cancelDeadlineMode: 'week' } }), /方式无效/)
 })
+
+test('cancelled list shows who refilled each dropped spot, with stats', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  fake.setNow(startAt - 3 * 24 * 60 * MIN)
+  const ids = ['o', 'a', 'b', 'c', 'd', 'e', 'f']
+  for (const id of ids) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, capacity: 2 } })
+  const step = () => fake.setNow(Date.now() + MIN)
+  for (const id of ['a', 'b', 'c', 'd']) { step(); await api(id, 'signup', { gameId, inviter: 'o' }) } // a b 报名，c d 替补
+  step(); await api('a', 'cancelSignup', { gameId }) // c 递补 → A 已补上（C）
+  step(); await api('d', 'cancelSignup', { gameId }) // 退出替补
+  step(); await api('b', 'cancelSignup', { gameId }) // 没有替补 → 暂时没人补
+  step(); await api('e', 'signup', { gameId, inviter: 'o' }) // E 新报名 → 补上 B
+  step(); await api('c', 'cancelSignup', { gameId }) // 没人补
+
+  const g = await api('o', 'getGame', { gameId })
+  const view = Object.fromEntries(g.cancelled.map((r) => [r.name, [r.cancelledFrom, r.refilledBy]]))
+  assert.deepStrictEqual(view, {
+    A: ['registered', 'C'],
+    D: ['waitlist', ''],
+    B: ['registered', 'E'],
+    C: ['registered', ''],
+  })
+  assert.deepStrictEqual(g.cancelStats, { fromRoster: 3, refilled: 2, fromWaitlist: 1 })
+})

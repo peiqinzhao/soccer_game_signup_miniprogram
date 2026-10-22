@@ -97,6 +97,7 @@ export interface RegView {
   cancelledAt: number
   cancelPhase: '' | 'free' | 'warn' | 'penalty'
   cancelledFrom?: '' | 'registered' | 'waitlist'
+  refilledBy?: string // 报名后取消：补上这个名额的人；'' 表示没人补上
   tags?: string[]
   note?: string
   checkinAt: number
@@ -160,6 +161,7 @@ export interface GameDetail {
   registered: RegView[]
   waitlist: RegView[]
   cancelled: RegView[]
+  cancelStats?: { fromRoster: number; refilled: number; fromWaitlist: number }
   me: {
     openid: string
     isMember: boolean
@@ -193,6 +195,8 @@ export interface GameForm {
   fineLateCancelCents?: number
   signupOpens: { date: string; time: string } | null
   cancelDeadline: { date: string; time: string } | null
+  forwardHours?: number | null
+  penaltyHours?: number | null
 }
 
 export interface MemberView {

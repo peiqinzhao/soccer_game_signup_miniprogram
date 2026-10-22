@@ -1,6 +1,6 @@
 import { run } from '../../utils/api'
 import { setFlash } from '../../utils/flash'
-import { fmtDate, TIMEZONES, deviceTimeZone, formatText, teamsRuleText } from '../../utils/format'
+import { fmtDate, fmtDateTime, TIMEZONES, deviceTimeZone, formatText, teamsRuleText } from '../../utils/format'
 import { ClubSettings, GameForm, GameTemplate, Venue } from '../../utils/types'
 
 const DURATIONS = [60, 90, 120]
@@ -47,13 +47,12 @@ function defaultDeadline(date: string, time: string, s: ClubSettings) {
   return { date: fmtDate(parseDate(date).getTime() - s.cancelDeadlineDaysBefore * DAY), time: s.cancelDeadlineTime }
 }
 
-function deadlineRuleText(s: ClubSettings): string {
-  const rule =
-    s.cancelDeadlineMode === 'hours'
-      ? `开场前 ${s.cancelDeadlineHours ?? 24} 小时`
-      : `比赛前 ${s.cancelDeadlineDaysBefore} 天 ${s.cancelDeadlineTime}`
-  const penalty = `开场前 ${s.penaltyWindowMin / 60} 小时内取消算临时取消${s.finesEnabled === false ? '' : '并罚款'}`
-  return `这个时间之后取消报名，必须转发到群里找人递补；${penalty}。默认${rule}，点日期或时间可修改。`
+// 球队默认的“提醒转发”小时数；老球队用“前 N 天固定时刻”时按这场比赛的时间换算
+function defaultForwardHours(date: string, time: string, s: ClubSettings): number {
+  if (s.cancelDeadlineMode === 'hours') return s.cancelDeadlineHours ?? 24
+  const d = defaultDeadline(date, time, s)
+  const diff = new Date(`${date}T${time}:00`).getTime() - new Date(`${d.date}T${d.time}:00`).getTime()
+  return Math.max(0, Math.round((diff / 3600000) * 2) / 2)
 }
 
 function tzIndexOf(tz: string): number {
@@ -99,15 +98,15 @@ Page({
     fineDollars: '5', // 迟到
     fineNoShowDollars: '5',
     fineLateCancelDollars: '5',
-    deadlineHint: '',
     scheduled: false,
     signupDate: '',
     signupTime: '20:00',
     signupEdited: false, // 手动改过开放时间后，改比赛日期时不再自动跟随
     scheduledTouched: false, // 手动开关过“定时开放报名”后，不再自动开关
-    deadlineDate: '',
-    deadlineTime: '21:00',
-    deadlineEdited: false, // 手动改过后，改比赛日期时不再自动跟随
+    forwardHours: '24', // 开场前几小时内取消要提醒转发
+    forwardEdited: false, // 手动改过后，改比赛时间时不再自动跟随
+    forwardAtText: '',
+    penaltyHours: '1', // 开场前几小时内取消算临时取消（自动罚款）
     settings: null as ClubSettings | null,
   },
 
@@ -163,7 +162,6 @@ Page({
       fineLateCancelDollars: String(
         (f ? f.fineLateCancelCents ?? f.fineCents : s.fineLateCancelCents ?? s.fineCents) / 100,
       ),
-      deadlineHint: deadlineRuleText(s),
     })
     // 定时开放报名：新比赛默认开启（比赛前 3 天 20:00，已过则不开启）；编辑/复制时沿用原设置
     const defOpen = defaultSignupOpens(this.data.date)
@@ -176,14 +174,15 @@ Page({
       scheduledTouched: !!f,
     })
     this.updateFormat()
-    // 编辑已有比赛时用它自己的截止时间；和默认值一样就当作没改过
-    const def = defaultDeadline(this.data.date, this.data.time, s)
-    const cur = f && f.cancelDeadline ? f.cancelDeadline : def
+    // 编辑已有比赛用它自己的设置；新比赛用球队默认
+    const def = defaultForwardHours(this.data.date, this.data.time, s)
+    const fwd = f && f.forwardHours != null ? f.forwardHours : def
     this.setData({
-      deadlineDate: cur.date,
-      deadlineTime: cur.time,
-      deadlineEdited: cur.date !== def.date || cur.time !== def.time,
+      forwardHours: String(fwd),
+      forwardEdited: fwd !== def,
+      penaltyHours: String(f && f.penaltyHours != null ? f.penaltyHours : s.penaltyWindowMin / 60),
     })
+    this.updateForwardText()
   },
 
   async refreshVenues() {
@@ -195,14 +194,19 @@ Page({
   },
 
   onInput(e: WechatMiniprogram.Input) {
-    this.setData({ [e.currentTarget.dataset.key]: e.detail.value })
+    const key = e.currentTarget.dataset.key
+    this.setData({ [key]: e.detail.value })
+    if (key === 'forwardHours') {
+      this.setData({ forwardEdited: true })
+      this.updateForwardText()
+    }
   },
 
   onPick(e: WechatMiniprogram.PickerChange) {
     const key = e.currentTarget.dataset.key as string
     const v = e.detail.value
     this.setData({ [key]: key.endsWith('Index') ? Number(v) : v })
-    if (key === 'deadlineDate' || key === 'deadlineTime') this.setData({ deadlineEdited: true })
+
     if (key === 'signupDate' || key === 'signupTime') this.setData({ signupEdited: true })
     if (key === 'time') this.syncDeadline()
     if (key === 'date') {
@@ -220,9 +224,16 @@ Page({
   },
 
   syncDeadline() {
-    if (this.data.deadlineEdited || !this.data.settings) return
-    const def = defaultDeadline(this.data.date, this.data.time, this.data.settings)
-    this.setData({ deadlineDate: def.date, deadlineTime: def.time })
+    if (!this.data.forwardEdited && this.data.settings) {
+      this.setData({ forwardHours: String(defaultForwardHours(this.data.date, this.data.time, this.data.settings)) })
+    }
+    this.updateForwardText()
+  },
+
+  updateForwardText() {
+    const h = Number(this.data.forwardHours)
+    const start = new Date(`${this.data.date}T${this.data.time}:00`).getTime()
+    this.setData({ forwardAtText: Number.isFinite(h) && start ? fmtDateTime(start - h * 3600000) : '' })
   },
 
   onSwitch(e: WechatMiniprogram.SwitchChange) {
@@ -259,8 +270,18 @@ Page({
     this.updateFormat()
   },
 
-  pickDuration(e: WechatMiniprogram.TouchEvent) {
-    this.setData({ durationMin: Number(e.currentTarget.dataset.v) })
+  async pickDuration(e: WechatMiniprogram.TouchEvent) {
+    let v = Number(e.currentTarget.dataset.v)
+    if (!v) {
+      const r = await wx.showModal({ title: '比赛时长（分钟）', content: String(this.data.durationMin), editable: true, placeholderText: '15–600' })
+      if (!r.confirm) return
+      v = Math.round(Number(r.content))
+      if (!(v >= 15 && v <= 600)) {
+        wx.showToast({ title: '需在 15–600 分钟之间', icon: 'none' })
+        return
+      }
+    }
+    this.setData({ durationMin: v })
   },
 
   addVenue() {
@@ -318,7 +339,7 @@ Page({
       signupEdited: !!t.signupOpens,
       signupDate: t.signupOpens ? fmtDate(parseDate(date).getTime() - t.signupOpens.daysBefore * DAY) : this.data.signupDate,
       signupTime: t.signupOpens ? t.signupOpens.time : this.data.signupTime,
-      deadlineEdited: false,
+      forwardEdited: false,
     })
     this.syncDeadline()
     this.updateFormat()
@@ -416,7 +437,9 @@ Page({
       fineLateCancelCents: Math.round(Number(d.fineLateCancelDollars) * 100),
       signupOpens: d.scheduled ? { date: d.signupDate, time: d.signupTime } : null,
       // 没改过就交给服务端按球队设置计算（和比赛时区一致）
-      cancelDeadline: d.deadlineEdited ? { date: d.deadlineDate, time: d.deadlineTime } : null,
+      cancelDeadline: null,
+      forwardHours: Number(d.forwardHours),
+      penaltyHours: Number(d.penaltyHours),
     }
     const res = await run<{ gameId: string; changed?: boolean; notified?: number }>(
       'saveGame',

@@ -19,6 +19,7 @@
       <text class="field-label">时长</text>
       <view class="chips">
         <text wx:for="{{durations}}" wx:key="*this" class="chip {{durationMin === item ? 'on' : ''}}" data-v="{{item}}" bindtap="pickDuration">{{item / 60}} 小时</text>
+        <text class="chip {{durationMin !== 60 && durationMin !== 90 && durationMin !== 120 ? 'on' : ''}}" data-v="0" bindtap="pickDuration">{{durationMin !== 60 && durationMin !== 90 && durationMin !== 120 ? durationMin + ' 分钟' : '自定义'}}</text>
       </view>
     </view>
     <view wx:if="{{venues.length}}">
@@ -91,17 +92,15 @@
       </picker>
     </block>
     <view class="field">
-      <text class="field-label">取消不转发罚款截止</text>
-      <view class="row">
-        <picker mode="date" value="{{deadlineDate}}" end="{{date}}" data-key="deadlineDate" bindchange="onPick">
-          <text>{{dt.daysBefore(deadlineDate, 0)}}</text>
-        </picker>
-        <picker mode="time" value="{{deadlineTime}}" data-key="deadlineTime" bindchange="onPick">
-          <text style="margin-left:12rpx;">{{deadlineTime}} ›</text>
-        </picker>
-      </view>
+      <text class="field-label">提醒转发（开场前几小时内取消）</text>
+      <input class="field-value" type="digit" value="{{forwardHours}}" data-key="forwardHours" bindinput="onInput" />
     </view>
-    <view class="hint">{{deadlineHint}}</view>
+    <view class="hint">{{forwardAtText ? forwardAtText + ' 之后' : '这个时间之后'}}取消，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“取消未转发”。</view>
+    <view class="field">
+      <text class="field-label">临时取消（开场前几小时内取消）</text>
+      <input class="field-value" type="digit" value="{{penaltyHours}}" data-key="penaltyHours" bindinput="onInput" />
+    </view>
+    <view class="hint">这段时间内取消算临时取消{{settings.finesEnabled !== false ? '，自动罚款（管理员可豁免）' : ''}}。</view>
     <view wx:if="{{checkinEnabled}}" class="field">
       <text class="field-label">迟到宽限（分钟）</text>
       <input class="field-value" type="number" value="{{lateGraceMin}}" data-key="lateGraceMin" bindinput="onInput" />

@@ -8,6 +8,7 @@ import { takeFlash } from '../../utils/flash'
 const MIN = 60 * 1000
 
 interface Row extends RegView {
+  badge2: string
   badge: string
   badgeClass: string
   timeText: string
@@ -82,6 +83,7 @@ function cancelPhase(g: GameDetail['game'], t: number): Phase {
 function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
   let badge = ''
   let badgeClass = ''
+  let badge2 = '' // 已取消里的第二个标签（临时取消）
   if (r.status === 'registered') {
     if (settled && r.attendance) {
       badge = ATTENDANCE_TEXT[r.attendance]
@@ -93,17 +95,16 @@ function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
   } else if (r.status === 'cancelled') {
     if (r.cancelledFrom === 'waitlist') {
       badge = '退出替补'
-    } else if (r.cancelPhase === 'penalty') {
-      badge = '临时取消'
-      badgeClass = 'tag-bad'
-    } else if (r.cancelPhase === 'warn') {
-      badge = '截止后取消'
-      badgeClass = 'tag-warn'
+    } else {
+      badge = r.refilledBy ? `已补上（${r.refilledBy}）` : '没人补上'
+      badgeClass = r.refilledBy ? 'tag-ok' : 'tag-warn'
+      if (r.cancelPhase === 'penalty') badge2 = '临时取消'
     }
   }
   const t = r.status === 'registered' ? r.spotAt : r.status === 'waitlist' ? r.waitlistAt : r.cancelledAt
   return {
     ...r,
+    badge2,
     badge,
     badgeClass,
     timeText: t ? fmtShort(t) : '',
@@ -141,6 +142,8 @@ Page({
     lateCancelFine: 0,
     myCheckinText: '',
     notifyText: '', // 管理员看的通知覆盖情况
+    forwardHoursText: '',
+    cancelStatsText: '',
     formatStr: '',
     teamSizesText: '',
     tagStats: '', // 如“已付款 18/24”
@@ -249,6 +252,12 @@ Page({
       myGoals: reg ? reg.goals || 0 : 0,
       myAssists: reg ? reg.assists || 0 : 0,
       notifyText: notifyText(d, t),
+      forwardHoursText: String(Math.round(((g.startAt - g.cancelDeadlineAt) / 3600000) * 10) / 10),
+      cancelStatsText: d.cancelStats
+        ? `报名后取消 ${d.cancelStats.fromRoster}（有人补上 ${d.cancelStats.refilled} · 没人补上 ${
+            d.cancelStats.fromRoster - d.cancelStats.refilled
+          }）· 退出替补 ${d.cancelStats.fromWaitlist}`
+        : '',
     })
     this.updateList()
     wx.setNavigationBarTitle({ title: g.title })
@@ -365,7 +374,7 @@ Page({
       : phase === 'free'
         ? '确定取消报名？'
         : phase === 'warn'
-          ? `已过取消不转发罚款截止时间（${g.local.cancelDeadline}）。取消后必须转发到群里，方便别人递补。`
+          ? `离开场不到 ${this.data.forwardHoursText} 小时了，取消后请转发到群里，方便没报上的人递补。`
           : this.data.lateCancelFine > 0
             ? `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消算临时取消，产生 ${money(this.data.lateCancelFine)} 罚款（管理员可视情况豁免）。仍要取消？`
             : `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消后请务必转发到群里，方便别人递补。仍要取消？`
@@ -380,8 +389,8 @@ Page({
     const res = await run<{ phase: Phase; fined: boolean }>('cancelSignup', { gameId: this.data.id }, '处理中')
     if (!res) return
     await this.load()
-    if (isWaitlist) {
-      wx.showToast({ title: '已退出替补', icon: 'none' })
+    if (isWaitlist || res.phase === 'free') {
+      wx.showToast({ title: isWaitlist ? '已退出替补' : '已取消报名', icon: 'none' })
       return
     }
     this.setData({ shareDialog: { show: true, phase: res.phase, fined: res.fined } })
@@ -710,6 +719,16 @@ Page({
     if (this.data.waitlist.length) {
       lines.push('', '替补：')
       this.data.waitlist.forEach((r, i) => lines.push(`${i + 1}. ${r.name}${r.note ? `（${r.note}）` : ''}`))
+    }
+    if (this.data.cancelled.length) {
+      lines.push('', `已取消：${this.data.cancelStatsText}`)
+      this.data.cancelled.forEach((r, i) => {
+        const what =
+          r.cancelledFrom === 'waitlist'
+            ? '退出替补'
+            : (r.cancelPhase === 'penalty' ? '临时取消，' : '') + (r.refilledBy ? `已补上：${r.refilledBy}` : '没人补上')
+        lines.push(`${i + 1}. ${r.name} ${fmtShort(r.cancelledAt)} 取消（${what}）`)
+      })
     }
     wx.setClipboardData({ data: lines.join('\n') })
   },
