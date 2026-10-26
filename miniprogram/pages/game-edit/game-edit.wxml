@@ -92,15 +92,15 @@
       </picker>
     </block>
     <view class="field">
-      <text class="field-label">提醒转发（开场前几小时内取消）</text>
+      <text class="field-label">提醒转发（开场前几小时内退出）</text>
       <input class="field-value" type="digit" value="{{forwardHours}}" data-key="forwardHours" bindinput="onInput" />
     </view>
-    <view class="hint">{{forwardAtText ? forwardAtText + ' 之后' : '这个时间之后'}}取消，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“取消未转发”。</view>
+    <view class="hint">{{forwardAtText ? forwardAtText + ' 之后' : '这个时间之后'}}退出，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“退出未转发”。</view>
     <view class="field">
-      <text class="field-label">临时取消（开场前几小时内取消）</text>
+      <text class="field-label">临时退出（开场前几小时内退出）</text>
       <input class="field-value" type="digit" value="{{penaltyHours}}" data-key="penaltyHours" bindinput="onInput" />
     </view>
-    <view class="hint">这段时间内取消算临时取消{{settings.finesEnabled !== false ? '，自动罚款（管理员可豁免）' : ''}}。</view>
+    <view class="hint">这段时间内退出算临时退出{{settings.finesEnabled !== false ? '，自动罚款（管理员可豁免）' : ''}}。</view>
     <view wx:if="{{checkinEnabled}}" class="field">
       <text class="field-label">迟到宽限（分钟）</text>
       <input class="field-value" type="number" value="{{lateGraceMin}}" data-key="lateGraceMin" bindinput="onInput" />
@@ -115,7 +115,7 @@
         <input class="field-value" type="digit" value="{{fineNoShowDollars}}" data-key="fineNoShowDollars" bindinput="onInput" />
       </view>
       <view class="field">
-        <text class="field-label">临时取消罚款（$）</text>
+        <text class="field-label">临时退出罚款（$）</text>
         <input class="field-value" type="digit" value="{{fineLateCancelDollars}}" data-key="fineLateCancelDollars" bindinput="onInput" />
       </view>
     </block>

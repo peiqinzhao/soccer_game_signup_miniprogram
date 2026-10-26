@@ -12,7 +12,7 @@ interface GameCard extends Game {
   stateText: string
 }
 
-const MY_STATUS: Record<string, string> = { registered: '已报名', waitlist: '替补中', cancelled: '已取消' }
+const MY_STATUS: Record<string, string> = { registered: '已报名', waitlist: '替补中', cancelled: '已退出' }
 
 // 我在这场的状态：结算后显示出勤结果，否则显示报名状态
 function myTag(g: Game): { text: string; cls: string } {

@@ -51,7 +51,7 @@ Page({
           const a = c.attendance
           const parts = [`已参加 ${a.played} 场`]
           if (a.played) parts.push(`准时 ${a.onTime}`, `迟到 ${a.late}`, `未到 ${a.noShow}`)
-          if (a.cancelled) parts.push(`取消 ${a.cancelled}`)
+          if (a.cancelled) parts.push(`退出 ${a.cancelled}`)
           if (a.upcoming) parts.push(`即将参加 ${a.upcoming}`)
           const f = c.fines
           return {

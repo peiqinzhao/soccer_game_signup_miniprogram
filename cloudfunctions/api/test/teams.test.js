@@ -542,7 +542,7 @@ test('separate fine amounts per reason and an hours-before cancel deadline', asy
   const amounts = Object.fromEntries(
     (await api('o', 'listFines', { clubId, status: 'pending' })).fines.map((f) => [f.openid, [f.reasonText, f.amountCents]]),
   )
-  assert.deepStrictEqual(amounts, { late: ['迟到', 300], noshow: ['未到', 1000], cancel: ['临时取消', 800] })
+  assert.deepStrictEqual(amounts, { late: ['迟到', 300], noshow: ['未到', 1000], cancel: ['临时退出', 800] })
 
   // 管理员把未到改成迟到：金额跟着变成 $3
   await api('o', 'setAttendance', { gameId, target: 'noshow', attendance: 'late' })

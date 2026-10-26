@@ -67,7 +67,7 @@ function buildGameFields(club, venue, f) {
           : T.deadlineBefore(startAt, tz, s.cancelDeadlineDaysBefore, s.cancelDeadlineTime)
   const penaltyHours = f.penaltyHours ?? null
   if (penaltyHours !== null && !(Number(penaltyHours) >= 0 && Number(penaltyHours) <= 168)) {
-    throw new UserError('临时取消需在开场前 0–168 小时之间')
+    throw new UserError('临时退出需在开场前 0–168 小时之间')
   }
   const signupOpensAt = f.signupOpens ? T.zonedToUtcMs(f.signupOpens.date, f.signupOpens.time, tz) : 0
   if (cancelDeadlineAt > startAt) throw new UserError('提醒转发的时间不能晚于开赛时间')
@@ -99,7 +99,7 @@ function buildGameFields(club, venue, f) {
     fineLateCancelCents:
       s.finesEnabled === false
         ? 0
-        : intIn(f.fineLateCancelCents ?? s.fineLateCancelCents ?? s.fineCents, 0, 100000, '临时取消罚款'),
+        : intIn(f.fineLateCancelCents ?? s.fineLateCancelCents ?? s.fineCents, 0, 100000, '临时退出罚款'),
     cancelDeadlineAt,
     signupOpensAt,
     penaltyWindowMin: penaltyHours !== null ? Math.round(Number(penaltyHours) * 60) : s.penaltyWindowMin,
@@ -524,8 +524,8 @@ async function cancelSignup({ openid, gameId }) {
   const reg = await getDoc('registrations', regId(gameId, openid))
   if (!reg || (reg.status !== 'registered' && reg.status !== 'waitlist')) throw new UserError('你没有报名')
   const now = Date.now()
-  if (game.status === 'active' && now >= game.cutoffAt) throw new UserError('已过签到截止时间，不能再取消')
-  if (reg.status === 'registered' && reg.checkinAt) throw new UserError('你已经签到了，不能取消报名')
+  if (game.status === 'active' && now >= game.cutoffAt) throw new UserError('已过签到截止时间，不能再退出')
+  if (reg.status === 'registered' && reg.checkinAt) throw new UserError('你已经签到了，不能退出报名')
 
   if (reg.status === 'waitlist') {
     await db
@@ -635,10 +635,10 @@ async function recheckCancellations(game) {
     if (rank[phase] >= rank[reg.cancelPhase]) continue
     await db.collection('registrations').doc(reg._id).update({ data: { cancelPhase: phase } })
     if (reg.cancelPhase === 'penalty') {
-      await autoWaive({ _id: `${game._id}_${reg.openid}_cancel` }, '比赛改时间，按新时间不算临时取消')
+      await autoWaive({ _id: `${game._id}_${reg.openid}_cancel` }, '比赛改时间，按新时间不算临时退出')
     }
     if (phase === 'free') {
-      await autoWaive({ _id: `${game._id}_${reg.openid}_noforward` }, '比赛改时间，按新时间取消时无需转发')
+      await autoWaive({ _id: `${game._id}_${reg.openid}_noforward` }, '比赛改时间，按新时间退出时无需转发')
     }
   }
 }
@@ -827,9 +827,9 @@ async function fineNoForward({ openid, gameId, target }) {
   await requireAdmin(game.clubId, openid)
   const reg = await getDoc('registrations', regId(gameId, target))
   if (!reg || reg.status !== 'cancelled' || reg.cancelPhase !== 'warn') {
-    throw new UserError('只能对截止后才取消报名的人使用')
+    throw new UserError('只能对提醒转发时间内退出的人使用')
   }
-  if (rules.fineFor(game, 'no_forward') <= 0) throw new UserError('本场临时取消罚款金额为 0')
+  if (rules.fineFor(game, 'no_forward') <= 0) throw new UserError('本场临时退出罚款金额为 0')
   const fine = await createFine({
     clubId: game.clubId,
     gameId,

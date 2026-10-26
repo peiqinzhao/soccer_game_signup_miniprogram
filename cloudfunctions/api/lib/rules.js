@@ -88,8 +88,8 @@ function validLevel(rating, level) {
 const FINE_REASONS = {
   late: '迟到',
   no_show: '未到',
-  late_cancel: '临时取消',
-  no_forward: '取消未转发',
+  late_cancel: '临时退出',
+  no_forward: '退出未转发',
   manual: '其他',
 }
 

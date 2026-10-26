@@ -95,11 +95,11 @@ test('full game flow', async () => {
   assert.deepStrictEqual(g.registered.map((r) => r.name), ['B', 'A']) // A 递补
 
   // C 没转发：管理员手动罚款；A 是截止前取消的，不能罚；非管理员不能罚
-  assert.match(await apiErr('owner', 'fineNoForward', { gameId, target: 'a' }), /截止后/)
+  assert.match(await apiErr('owner', 'fineNoForward', { gameId, target: 'a' }), /提醒转发时间内/)
   assert.match(await apiErr('b', 'fineNoForward', { gameId, target: 'c' }), /管理员/)
   const { fineId: nf } = await api('owner', 'fineNoForward', { gameId, target: 'c' })
   let cFines = (await api('c', 'listFines', { clubId })).fines
-  assert.deepStrictEqual(cFines.map((f) => f.reasonText), ['取消未转发'])
+  assert.deepStrictEqual(cFines.map((f) => f.reasonText), ['退出未转发'])
   // 这里豁免掉，不影响后面 C 重新排队
   await api('owner', 'resolveFines', { clubId, fineIds: [nf], op: 'waived', note: '已在群里说过' })
 
@@ -146,14 +146,14 @@ test('full game flow', async () => {
   // 管理员把 C 改为未到 → 手动产生罚款；再改回准时 → 豁免
   await api('owner', 'setAttendance', { gameId, target: 'c', attendance: 'no_show' })
   let fines = (await api('owner', 'listFines', { clubId, status: 'pending' })).fines
-  assert.deepStrictEqual(fines.map((f) => [f.name, f.reasonText]).sort(), [['B', '临时取消'], ['C', '未到']])
+  assert.deepStrictEqual(fines.map((f) => [f.name, f.reasonText]).sort(), [['B', '临时退出'], ['C', '未到']])
   await api('owner', 'setAttendance', { gameId, target: 'c', attendance: 'on_time' })
   fines = (await api('owner', 'listFines', { clubId, status: 'pending' })).fines
   assert.deepStrictEqual(fines.map((f) => f.name), ['B'])
 
   // 比赛页：管理员能看到本场罚款，普通成员看不到
   const gf = (await api('owner', 'getGame', { gameId })).fines
-  assert.deepStrictEqual(gf.filter((f) => f.status === 'pending').map((f) => [f.openid, f.reasonText]), [['b', '临时取消']])
+  assert.deepStrictEqual(gf.filter((f) => f.status === 'pending').map((f) => [f.openid, f.reasonText]), [['b', '临时退出']])
   assert.deepStrictEqual((await api('a', 'getGame', { gameId })).fines, [])
 
   // 从比赛页给 A 加“穿钉鞋”罚款，关联本场
@@ -374,11 +374,11 @@ test('cancelling or rescheduling a game clears fines that no longer apply', asyn
   fake.setNow(startAt - 30 * MIN)
   assert.strictEqual((await api('p', 'cancelSignup', { gameId })).phase, 'penalty')
   const pending = async () => (await api('o', 'listFines', { clubId, status: 'pending' })).fines.map((f) => f.reasonText).sort()
-  assert.deepStrictEqual(await pending(), ['临时取消', '取消未转发'])
+  assert.deepStrictEqual(await pending(), ['临时退出', '退出未转发'])
 
   // 改到 14:00：P 按新时间是提前 4.5 小时取消 → 撤销；Q 仍在截止后 → 保留
   await api('o', 'saveGame', { clubId, gameId, form: { ...form, time: '14:00' } })
-  assert.deepStrictEqual(await pending(), ['取消未转发'])
+  assert.deepStrictEqual(await pending(), ['退出未转发'])
   const g = await api('o', 'getGame', { gameId })
   assert.strictEqual(g.cancelled.find((r) => r.name === 'P').cancelPhase, 'warn')
 

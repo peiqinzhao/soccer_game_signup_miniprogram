@@ -98,7 +98,7 @@ function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
     } else {
       badge = r.refilledBy ? `已补上（${r.refilledBy}）` : '没人补上'
       badgeClass = r.refilledBy ? 'tag-ok' : 'tag-warn'
-      if (r.cancelPhase === 'penalty') badge2 = '临时取消'
+      if (r.cancelPhase === 'penalty') badge2 = '临时退出'
     }
   }
   const t = r.status === 'registered' ? r.spotAt : r.status === 'waitlist' ? r.waitlistAt : r.cancelledAt
@@ -254,7 +254,7 @@ Page({
       notifyText: notifyText(d, t),
       forwardHoursText: String(Math.round(((g.startAt - g.cancelDeadlineAt) / 3600000) * 10) / 10),
       cancelStatsText: d.cancelStats
-        ? `报名后取消 ${d.cancelStats.fromRoster}（有人补上 ${d.cancelStats.refilled} · 没人补上 ${
+        ? `报名后退出 ${d.cancelStats.fromRoster}（有人补上 ${d.cancelStats.refilled} · 没人补上 ${
             d.cancelStats.fromRoster - d.cancelStats.refilled
           }）· 退出替补 ${d.cancelStats.fromWaitlist}`
         : '',
@@ -311,7 +311,7 @@ Page({
     } else {
       wx.showModal({
         title: '名额已满，已进入替补',
-        content: subscribed ? '有人取消时会自动递补，并通过微信通知你。' : '有人取消时会自动递补。你没有开启通知，请留意群消息。',
+        content: subscribed ? '有人退出时会自动递补，并通过微信通知你。' : '有人退出时会自动递补。你没有开启通知，请留意群消息。',
         showCancel: false,
       })
     }
@@ -372,16 +372,16 @@ Page({
     const content = isWaitlist
       ? '确定退出替补？'
       : phase === 'free'
-        ? '确定取消报名？'
+        ? '确定退出报名？'
         : phase === 'warn'
-          ? `离开场不到 ${this.data.forwardHoursText} 小时了，取消后请转发到群里，方便没报上的人递补。`
+          ? `离开场不到 ${this.data.forwardHoursText} 小时了，退出后请转发到群里，方便没报上的人递补。`
           : this.data.lateCancelFine > 0
-            ? `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消算临时取消，产生 ${money(this.data.lateCancelFine)} 罚款（管理员可视情况豁免）。仍要取消？`
-            : `距开赛不足 ${g.penaltyWindowMin / 60} 小时，取消后请务必转发到群里，方便别人递补。仍要取消？`
+            ? `距开赛不足 ${g.penaltyWindowMin / 60} 小时，退出算临时退出，产生 ${money(this.data.lateCancelFine)} 罚款（管理员可视情况豁免）。仍要退出？`
+            : `距开赛不足 ${g.penaltyWindowMin / 60} 小时，退出后请务必转发到群里，方便别人递补。仍要退出？`
     const ok = await wx.showModal({
-      title: isWaitlist ? '退出替补' : '取消报名',
+      title: isWaitlist ? '退出替补' : '退出报名',
       content,
-      confirmText: '确定取消',
+      confirmText: '确定退出',
       confirmColor: phase === 'free' ? '#111111' : '#d4380d',
       cancelText: '再想想',
     })
@@ -390,7 +390,7 @@ Page({
     if (!res) return
     await this.load()
     if (isWaitlist || res.phase === 'free') {
-      wx.showToast({ title: isWaitlist ? '已退出替补' : '已取消报名', icon: 'none' })
+      wx.showToast({ title: isWaitlist ? '已退出替补' : '已退出报名', icon: 'none' })
       return
     }
     this.setData({ shareDialog: { show: true, phase: res.phase, fined: res.fined } })
@@ -721,13 +721,13 @@ Page({
       this.data.waitlist.forEach((r, i) => lines.push(`${i + 1}. ${r.name}${r.note ? `（${r.note}）` : ''}`))
     }
     if (this.data.cancelled.length) {
-      lines.push('', `已取消：${this.data.cancelStatsText}`)
+      lines.push('', `已退出：${this.data.cancelStatsText}`)
       this.data.cancelled.forEach((r, i) => {
         const what =
           r.cancelledFrom === 'waitlist'
             ? '退出替补'
-            : (r.cancelPhase === 'penalty' ? '临时取消，' : '') + (r.refilledBy ? `已补上：${r.refilledBy}` : '没人补上')
-        lines.push(`${i + 1}. ${r.name} ${fmtShort(r.cancelledAt)} 取消（${what}）`)
+            : (r.cancelPhase === 'penalty' ? '临时退出，' : '') + (r.refilledBy ? `已补上：${r.refilledBy}` : '没人补上')
+        lines.push(`${i + 1}. ${r.name} ${fmtShort(r.cancelledAt)} 退出（${what}）`)
       })
     }
     wx.setClipboardData({ data: lines.join('\n') })
@@ -815,11 +815,11 @@ Page({
     const noFwdFine = d.game.fineLateCancelCents ?? d.game.fineCents
     if (status === 'cancelled' && phase === 'warn' && noFwdFine > 0 && row && !row.fineText) {
       items.push({
-        label: `罚款：取消未转发（${money(noFwdFine)}）`,
+        label: `罚款：退出未转发（${money(noFwdFine)}）`,
         run: async () => {
           const r = await wx.showModal({
-            title: '取消未转发',
-            content: `确认 ${name} 取消报名后没有转发到群里？将产生 ${money(noFwdFine)} 罚款，可在罚款管理里豁免。`,
+            title: '退出未转发',
+            content: `确认 ${name} 退出报名后没有转发到群里？将产生 ${money(noFwdFine)} 罚款，可在罚款管理里豁免。`,
           })
           if (!r.confirm) return null
           const ok = await run('fineNoForward', { gameId: this.data.id, target: openid }, '处理中')
@@ -955,7 +955,7 @@ Page({
     }
     let title = `${g.local.start} ${g.venue.name}，快来报名`
     if (me && me.status === 'registered') title = `@所有人 “${who}” 参加该比赛，点击查看比赛详情`
-    if (me && me.status === 'cancelled') title = `@所有人 “${who}” 取消报名，有空位可以递补`
+    if (me && me.status === 'cancelled') title = `@所有人 “${who}” 退出报名，有空位可以递补`
     return { title, path }
   },
 })

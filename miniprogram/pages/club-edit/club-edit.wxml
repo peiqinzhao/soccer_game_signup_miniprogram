@@ -46,7 +46,7 @@
       <text class="field-label">启用罚款</text>
       <switch checked="{{finesEnabled}}" data-key="finesEnabled" bindchange="onSwitch" color="#111" />
     </view>
-    <view wx:if="{{!finesEnabled}}" class="hint">关闭后不产生任何罚款（迟到、未到、临时取消都不罚），也不会因未付罚款拦截报名；基金账本照常可用</view>
+    <view wx:if="{{!finesEnabled}}" class="hint">关闭后不产生任何罚款（迟到、未到、临时退出都不罚），也不会因未付罚款拦截报名；基金账本照常可用</view>
     <block wx:if="{{finesEnabled}}">
       <view class="field">
         <text class="field-label">迟到罚款（$）</text>
@@ -57,7 +57,7 @@
         <input class="field-value" type="digit" value="{{fineNoShowDollars}}" data-key="fineNoShowDollars" bindinput="onInput" />
       </view>
       <view class="field">
-        <text class="field-label">临时取消罚款（$）</text>
+        <text class="field-label">临时退出罚款（$）</text>
         <input class="field-value" type="digit" value="{{fineLateCancelDollars}}" data-key="fineLateCancelDollars" bindinput="onInput" />
       </view>
     </block>
@@ -66,15 +66,15 @@
       <input class="field-value" type="number" value="{{nums[item.key]}}" data-key="nums.{{item.key}}" bindinput="onInput" />
     </view>
     <view class="field">
-      <text class="field-label">提醒转发（开场前几小时内取消）</text>
+      <text class="field-label">提醒转发（开场前几小时内退出）</text>
       <input class="field-value" type="digit" value="{{cancelHours}}" data-key="cancelHours" bindinput="onInput" />
     </view>
-    <view class="hint">这段时间内取消，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“取消未转发”。<text wx:if="{{legacyDeadline}}">（原来是“{{legacyDeadline}}”，保存后改为按小时计算）</text></view>
+    <view class="hint">这段时间内退出，会提醒对方转发到群里找人递补；系统不罚款，管理员可视情况手动罚“退出未转发”。<text wx:if="{{legacyDeadline}}">（原来是“{{legacyDeadline}}”，保存后改为按小时计算）</text></view>
     <view class="field">
-      <text class="field-label">临时取消（开场前几小时内取消）</text>
+      <text class="field-label">临时退出（开场前几小时内退出）</text>
       <input class="field-value" type="digit" value="{{penaltyHours}}" data-key="penaltyHours" bindinput="onInput" />
     </view>
-    <view class="hint">这段时间内取消算临时取消{{finesEnabled ? '，自动罚款（管理员可豁免）' : ''}}。例：提醒转发 24、临时取消 1。</view>
+    <view class="hint">这段时间内退出算临时退出{{finesEnabled ? '，自动罚款（管理员可豁免）' : ''}}。例：提醒转发 24、临时退出 1。</view>
     <view class="field">
       <text class="field-label">默认开启到场签到</text>
       <switch checked="{{checkinEnabled}}" data-key="checkinEnabled" bindchange="onSwitch" color="#111" />

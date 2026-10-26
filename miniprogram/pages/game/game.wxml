@@ -14,7 +14,7 @@
     <view class="sub small mt">
       {{d.club.name}}<text wx:if="{{d.game.checkinEnabled !== false}}"> · 开赛 {{d.game.lateGraceMin}} 分钟后未签到记迟到<text wx:if="{{d.game.fineCents > 0}}">，罚 {{fineText}}</text><text wx:if="{{(d.game.fineNoShowCents || 0) > 0}}">；未到罚 {{noShowFineText}}</text></text>
     </view>
-    <view class="sub small">{{d.game.local.cancelDeadline}} 之后取消请转发到群里找人递补</view>
+    <view class="sub small">{{d.game.local.cancelDeadline}} 之后退出请转发到群里找人递补</view>
     <view wx:if="{{d.game.note}}" class="mt" style="white-space: pre-wrap;">{{d.game.note}}</view>
   </view>
 
@@ -150,7 +150,7 @@
       <view class="sub small">每分钟更新 · {{code.refreshText}}</view>
     </view>
     <view wx:if="{{notifyText}}" class="sub small mt">{{notifyText}}</view>
-    <view class="hint">点名单里的人可以：<text wx:if="{{d.club.matchStatsEnabled}}">改进球/助攻、</text>代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已取消」里截止后才取消的人可以罚“取消未转发”</view>
+    <view class="hint">点名单里的人可以：<text wx:if="{{d.club.matchStatsEnabled}}">改进球/助攻、</text>代签到、修正出勤、改标签、改备注、处理罚款、修改名字；「已退出」里在提醒转发时间内退出的人可以罚“退出未转发”</view>
   </view>
 
   <!-- 名单 -->
@@ -159,7 +159,7 @@
       <view class="row">
         <text class="{{tab === 'registered' ? 'bold' : 'sub'}}" data-tab="registered" bindtap="switchTab">已报名 {{registered.length}}</text>
         <text class="{{tab === 'waitlist' ? 'bold' : 'sub'}}" style="margin-left:32rpx;" data-tab="waitlist" bindtap="switchTab">替补 {{waitlist.length}}</text>
-        <text class="{{tab === 'cancelled' ? 'bold' : 'sub'}}" style="margin-left:32rpx;" data-tab="cancelled" bindtap="switchTab">已取消 {{cancelled.length}}</text>
+        <text class="{{tab === 'cancelled' ? 'bold' : 'sub'}}" style="margin-left:32rpx;" data-tab="cancelled" bindtap="switchTab">已退出 {{cancelled.length}}</text>
       </view>
       <text class="small">剩余 {{d.game.capacity - d.game.registeredCount > 0 ? d.game.capacity - d.game.registeredCount : 0}}/{{d.game.capacity}}</text>
     </view>
@@ -207,7 +207,7 @@
     <button class="btn flex1" disabled>比赛进行中</button>
   </block>
   <block wx:elif="{{myStatus === 'registered'}}">
-    <button class="btn btn-ghost flex1" bindtap="onCancel">{{started ? '取消报名（算临时取消）' : '取消报名'}}</button>
+    <button class="btn btn-ghost flex1" bindtap="onCancel">{{started ? '退出报名（算临时退出）' : '退出报名'}}</button>
   </block>
   <block wx:elif="{{myStatus === 'waitlist' && !pastCutoff}}">
     <button class="btn btn-ghost flex1" bindtap="onCancel">退出替补</button>
@@ -232,7 +232,7 @@
     <view class="dialog-title">请转发到群里</view>
     <view class="dialog-body">
       <block>离开场不到 {{forwardHoursText}} 小时，请转发到群里，方便没报上的人递补。</block>
-      <view wx:if="{{shareDialog.fined}}" class="bad mt">距开赛不足 {{d.game.penaltyWindowMin / 60}} 小时取消，已记为临时取消并产生罚款，管理员可视情况豁免。</view>
+      <view wx:if="{{shareDialog.fined}}" class="bad mt">距开赛不足 {{d.game.penaltyWindowMin / 60}} 小时退出，已记为临时退出并产生罚款，管理员可视情况豁免。</view>
     </view>
     <button class="btn" open-type="share">转发到群</button>
     <view class="sub small mt" style="text-align:center;" bindtap="closeShareDialog">

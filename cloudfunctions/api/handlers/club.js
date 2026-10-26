@@ -278,7 +278,7 @@ function cleanTemplate(t) {
     lateGraceMin: int(t.lateGraceMin, 0, 120, '迟到宽限'),
     fineCents: int(t.fineCents, 0, 100000, '罚款金额'),
     fineNoShowCents: int(t.fineNoShowCents ?? t.fineCents, 0, 100000, '未到罚款'),
-    fineLateCancelCents: int(t.fineLateCancelCents ?? t.fineCents, 0, 100000, '临时取消罚款'),
+    fineLateCancelCents: int(t.fineLateCancelCents ?? t.fineCents, 0, 100000, '临时退出罚款'),
     signupOpens: t.signupOpens
       ? { daysBefore: int(t.signupOpens.daysBefore, 0, 14, '开放报名天数'), time: hhmm(t.signupOpens.time, '开放时间') }
       : null,
