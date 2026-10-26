@@ -104,6 +104,8 @@ Page({
     signupEdited: false, // 手动改过开放时间后，改比赛日期时不再自动跟随
     scheduledTouched: false, // 手动开关过“定时开放报名”后，不再自动开关
     feeTiers: [] as { label: string; dollars: string }[], // 本场价格（球队开启收费时）
+    feeOn: true, // 本场是否收费
+    feeWasOff: false, // 编辑的这场原来没有收费（保存后才开启）
     forwardHours: '24', // 开场前几小时内取消要提醒转发
     forwardEdited: false, // 手动改过后，改比赛时间时不再自动跟随
     forwardAtText: '',
@@ -176,7 +178,10 @@ Page({
     })
     this.updateFormat()
     const clubTiers = s.fee && s.fee.enabled ? s.fee.tiers : []
+    const editing = !!this.data.gameId && !!f
     this.setData({
+      feeOn: editing ? f!.feeEnabled !== false : true,
+      feeWasOff: editing && f!.feeEnabled === false,
       feeTiers: clubTiers.map((t, i) => ({
         label: t.label,
         dollars: String(((f && f.feeCents && f.feeCents[i] !== undefined ? f.feeCents[i] : t.cents) || 0) / 100),
@@ -449,6 +454,7 @@ Page({
       forwardHours: Number(d.forwardHours),
       penaltyHours: Number(d.penaltyHours),
       feeCents: d.feeTiers.length ? d.feeTiers.map((t) => Math.round(Number(t.dollars) * 100)) : null,
+      feeEnabled: d.feeTiers.length ? d.feeOn : false,
     }
     const res = await run<{ gameId: string; changed?: boolean; notified?: number }>(
       'saveGame',

@@ -220,6 +220,7 @@ export interface GameForm {
   forwardHours?: number | null
   penaltyHours?: number | null
   feeCents?: number[] | null
+  feeEnabled?: boolean
 }
 
 export interface MemberView {

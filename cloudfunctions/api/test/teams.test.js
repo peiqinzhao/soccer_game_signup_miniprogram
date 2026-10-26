@@ -710,6 +710,10 @@ test('fees: two price tiers chosen by the payer, party payment, refund after lea
   g = await api('o', 'getGame', { gameId })
   assert.strictEqual(g.feeStats.toRefund, 0)
   assert.strictEqual(g.cancelled[0].pay.status, 'refunded')
+  // 单场关闭收费
+  const { gameId: free } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-22', time: '19:00', timezone: tz, venueId, feeEnabled: false } })
+  assert.strictEqual((await api('o', 'getGame', { gameId: free })).game.fee, null)
+  assert.strictEqual((await api('o', 'gameForm', { clubId, gameId: free })).form.feeEnabled, false)
   // 没开收费的比赛不能标
   await api('o', 'updateClub', { clubId, settings: { fee: { enabled: false } } })
   const { gameId: g2 } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-15', time: '19:00', timezone: tz, venueId } })

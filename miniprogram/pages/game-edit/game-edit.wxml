@@ -122,8 +122,13 @@
   </view>
 
   <view wx:if="{{feeTiers.length}}" class="card">
-    <view class="card-title">本场价格</view>
-    <view wx:for="{{feeTiers}}" wx:key="label" class="field">
+    <view class="field">
+      <text class="field-label bold">本场收费</text>
+      <switch checked="{{feeOn}}" data-key="feeOn" bindchange="onSwitch" color="#111" />
+    </view>
+    <view wx:if="{{feeOn && feeWasOff}}" class="hint">这场原来没有收费，保存后开启，队员就能标记缴费了</view>
+    <view wx:if="{{!feeOn}}" class="hint">本场免费，不显示价格和缴费</view>
+    <view wx:for="{{feeTiers}}" wx:key="label" wx:if="{{feeOn}}" class="field">
       <text class="field-label">{{item.label}}（$）</text>
       <input class="field-value" type="digit" value="{{item.dollars}}" data-key="feeTiers[{{index}}].dollars" bindinput="onInput" />
     </view>

@@ -117,7 +117,7 @@ function buildGameFields(club, venue, f) {
     autoTeams: checkinOn && !!f.autoTeams,
     goalkeeper: checkinOn && !!f.autoTeams && !!f.goalkeeper,
     tags: tagsOrThrow(f.tags),
-    fee: gameFee(s, f.feeCents),
+    fee: f.feeEnabled === false ? null : gameFee(s, f.feeCents),
     fineCents: s.finesEnabled === false ? 0 : intIn(f.fineCents ?? s.fineCents, 0, 100000, '迟到罚款'),
     fineNoShowCents:
       s.finesEnabled === false ? 0 : intIn(f.fineNoShowCents ?? s.fineNoShowCents ?? s.fineCents, 0, 100000, '未到罚款'),
@@ -233,6 +233,7 @@ async function gameForm({ openid, clubId, gameId, copyLast }) {
     goalkeeper: !!src.goalkeeper,
     tags: src.tags || [],
     feeCents: src.fee ? src.fee.tiers.map((t) => t.cents) : null,
+    feeEnabled: gameId ? !!src.fee : undefined, // 编辑时：这场现在有没有收费
     lateGraceMin: src.lateGraceMin,
     fineCents: src.fineCents,
     fineNoShowCents: src.fineNoShowCents ?? src.fineCents,
