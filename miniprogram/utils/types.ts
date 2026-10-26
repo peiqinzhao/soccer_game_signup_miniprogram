@@ -30,7 +30,20 @@ export interface ClubSettings {
   finesEnabled?: boolean
   matchStatsEnabled?: boolean
   guestsMax?: number
+  fee?: { enabled: boolean; tiers: FeeTier[] }
   rating?: RatingSettings
+}
+
+export interface FeeTier {
+  label: string
+  cents: number
+}
+
+export interface PayState {
+  status: 'unpaid' | 'paid' | 'refunded'
+  tier?: number
+  label?: string
+  cents?: number
 }
 
 export interface RatingSettings {
@@ -71,6 +84,7 @@ export interface Game {
   autoTeams: boolean
   goalkeeper: boolean
   tags?: string[]
+  fee?: { tiers: FeeTier[] } | null
   teamsFormedAt?: number
   cancelReason?: string
   cancelledAt?: number
@@ -103,6 +117,7 @@ export interface RegView {
   cancelledFrom?: '' | 'registered' | 'waitlist'
   refilledBy?: string // 报名后取消：补上这个名额的人；'' 表示没人补上
   tags?: string[]
+  pay?: PayState
   note?: string
   checkinAt: number
   checkinMethod: string
@@ -167,6 +182,7 @@ export interface GameDetail {
   waitlist: RegView[]
   cancelled: RegView[]
   cancelStats?: { fromRoster: number; refilled: number; fromWaitlist: number }
+  feeStats?: { paid: number; total: number; collectedCents: number; toRefund: number; toRefundCents: number } | null
   me: {
     openid: string
     isMember: boolean
@@ -203,6 +219,7 @@ export interface GameForm {
   cancelDeadline: { date: string; time: string } | null
   forwardHours?: number | null
   penaltyHours?: number | null
+  feeCents?: number[] | null
 }
 
 export interface MemberView {

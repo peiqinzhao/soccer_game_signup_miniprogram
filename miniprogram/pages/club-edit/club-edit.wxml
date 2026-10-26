@@ -17,6 +17,29 @@
     <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
       <view class="field"><text class="field-label">默认时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
     </picker>
+    <view class="field">
+      <text class="field-label">收费</text>
+      <switch checked="{{feeEnabled}}" data-key="feeEnabled" bindchange="onSwitch" color="#111" />
+    </view>
+    <block wx:if="{{feeEnabled}}">
+      <view class="field">
+        <text class="field-label">价格 1</text>
+        <view class="row">
+          <input value="{{fee1Label}}" data-key="fee1Label" bindinput="onInput" placeholder="名称" maxlength="6" style="width:150rpx; text-align:right;" />
+          <text class="sub" style="margin:0 8rpx;">$</text>
+          <input type="digit" value="{{fee1Dollars}}" data-key="fee1Dollars" bindinput="onInput" style="width:110rpx;" />
+        </view>
+      </view>
+      <view class="field">
+        <text class="field-label">价格 2（选填）</text>
+        <view class="row">
+          <input value="{{fee2Label}}" data-key="fee2Label" bindinput="onInput" placeholder="名称" maxlength="6" style="width:150rpx; text-align:right;" />
+          <text class="sub" style="margin:0 8rpx;">$</text>
+          <input type="digit" value="{{fee2Dollars}}" data-key="fee2Dollars" bindinput="onInput" style="width:110rpx;" />
+        </view>
+      </view>
+      <view class="hint">队员标记已付时自己选哪一档（如 赛前 $17 / 赛后 $19）。只有一档就把价格 2 的名称清空。发起比赛时可以单场改价。</view>
+    </block>
     <picker range="{{guestOptions}}" value="{{guestsMaxIndex}}" data-key="guestsMaxIndex" bindchange="onPick">
       <view class="field"><text class="field-label">带朋友报名</text><text class="field-value small">{{guestOptions[guestsMaxIndex]}} ›</text></view>
     </picker>

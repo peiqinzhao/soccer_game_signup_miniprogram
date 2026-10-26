@@ -103,6 +103,7 @@ Page({
     signupTime: '20:00',
     signupEdited: false, // 手动改过开放时间后，改比赛日期时不再自动跟随
     scheduledTouched: false, // 手动开关过“定时开放报名”后，不再自动开关
+    feeTiers: [] as { label: string; dollars: string }[], // 本场价格（球队开启收费时）
     forwardHours: '24', // 开场前几小时内取消要提醒转发
     forwardEdited: false, // 手动改过后，改比赛时间时不再自动跟随
     forwardAtText: '',
@@ -174,6 +175,13 @@ Page({
       scheduledTouched: !!f,
     })
     this.updateFormat()
+    const clubTiers = s.fee && s.fee.enabled ? s.fee.tiers : []
+    this.setData({
+      feeTiers: clubTiers.map((t, i) => ({
+        label: t.label,
+        dollars: String(((f && f.feeCents && f.feeCents[i] !== undefined ? f.feeCents[i] : t.cents) || 0) / 100),
+      })),
+    })
     // 编辑已有比赛用它自己的设置；新比赛用球队默认
     const def = defaultForwardHours(this.data.date, this.data.time, s)
     const fwd = f && f.forwardHours != null ? f.forwardHours : def
@@ -440,6 +448,7 @@ Page({
       cancelDeadline: null,
       forwardHours: Number(d.forwardHours),
       penaltyHours: Number(d.penaltyHours),
+      feeCents: d.feeTiers.length ? d.feeTiers.map((t) => Math.round(Number(t.dollars) * 100)) : null,
     }
     const res = await run<{ gameId: string; changed?: boolean; notified?: number }>(
       'saveGame',

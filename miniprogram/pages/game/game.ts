@@ -8,6 +8,8 @@ import { takeFlash } from '../../utils/flash'
 const MIN = 60 * 1000
 
 interface Row extends RegView {
+  payBadge: string
+  payClass: string
   badge2: string
   badge: string
   badgeClass: string
@@ -71,6 +73,12 @@ function notifyText(d: GameDetail, t: number): string {
   return `通知：${parts.join(' · ')}`
 }
 
+function payLabel(p?: { status: string; label?: string; cents?: number }): string {
+  if (!p || p.status === 'unpaid') return '未付'
+  if (p.status === 'refunded') return '已退款'
+  return `已付 ${p.label || ''} ${money(p.cents || 0)}`
+}
+
 let clockSkew = 0 // serverNow - Date.now()
 const now = () => Date.now() + clockSkew
 
@@ -102,8 +110,20 @@ function toRow(r: RegView, settled: boolean, fines: GameFine[]): Row {
     }
   }
   const t = r.status === 'registered' ? r.spotAt : r.status === 'waitlist' ? r.waitlistAt : r.cancelledAt
+  const pay = r.pay || { status: 'unpaid' }
+  const payBadge =
+    pay.status === 'refunded'
+      ? '已退款'
+      : pay.status === 'paid'
+        ? r.status === 'cancelled'
+          ? `已付 ${pay.label || ''} · 待退款`
+          : `已付 ${pay.label || ''}`
+        : ''
+  const payClass = pay.status === 'paid' ? (r.status === 'cancelled' ? 'tag-warn' : 'tag-ok') : ''
   return {
     ...r,
+    payBadge,
+    payClass,
     badge2,
     badge,
     badgeClass,
@@ -143,6 +163,9 @@ Page({
     myCheckinText: '',
     notifyText: '', // 管理员看的通知覆盖情况
     forwardHoursText: '',
+    feeText: '',
+    feeStatsText: '',
+    myPayText: '',
     cancelStatsText: '',
     formatStr: '',
     teamSizesText: '',
@@ -252,6 +275,12 @@ Page({
       myGoals: reg ? reg.goals || 0 : 0,
       myAssists: reg ? reg.assists || 0 : 0,
       notifyText: notifyText(d, t),
+      feeText: g.fee ? g.fee.tiers.map((x) => `${x.label} ${money(x.cents)}`).join(' / ') : '',
+      feeStatsText: d.feeStats
+        ? `已付 ${d.feeStats.paid}/${d.feeStats.total} 人 · 已收 ${money(d.feeStats.collectedCents)}` +
+          (d.feeStats.toRefund ? ` · ⚠️ 已退出但已付 ${d.feeStats.toRefund} 人（${money(d.feeStats.toRefundCents)}）待退款` : '')
+        : '',
+      myPayText: reg && g.fee ? payLabel(reg.pay) : '',
       forwardHoursText: String(Math.round(((g.startAt - g.cancelDeadlineAt) / 3600000) * 10) / 10),
       cancelStatsText: d.cancelStats
         ? `报名后退出 ${d.cancelStats.fromRoster}（有人补上 ${d.cancelStats.refilled} · 没人补上 ${
@@ -625,10 +654,47 @@ Page({
     })
   },
 
+  // ---------- 缴费 ----------
+
+  // 选价格档标记已付；party：连带自己带的朋友一起
+  async choosePayment(target: string | undefined, current: string, party: number, adminRefund = false) {
+    const d = this.data.d!
+    const tiers = (d.game.fee && d.game.fee.tiers) || []
+    const n = party + 1
+    const opts = tiers.map((t) => `已付：${t.label} ${money(t.cents)}${n > 1 ? ` × ${n} 人` : ''}`)
+    const actions: { status: string; tier?: number }[] = tiers.map((_, i) => ({ status: 'paid', tier: i }))
+    if (current !== 'unpaid') {
+      opts.push(n > 1 ? `改为未付（${n} 人）` : '改为未付')
+      actions.push({ status: 'unpaid' })
+    }
+    if (adminRefund && current === 'paid') {
+      opts.push('标记已退款')
+      actions.push({ status: 'refunded' })
+    }
+    let pick: number
+    try {
+      pick = (await wx.showActionSheet({ itemList: opts })).tapIndex
+    } catch (err) {
+      return null
+    }
+    const a = actions[pick]
+    const res = await run('setPayment', { gameId: this.data.id, target, status: a.status, tier: a.tier, party: party > 0 }, '保存中')
+    if (res) this.load()
+    return null
+  },
+
+  onPayMine() {
+    const d = this.data.d!
+    if (!d.me.reg) return
+    const status = (d.me.reg.pay && d.me.reg.pay.status) || 'unpaid'
+    this.choosePayment(undefined, status, (d.me.guests || []).filter((g) => g.status === 'registered').length)
+  },
+
   // 非管理员点自己带的朋友：退出 / 备注 / 标签
   async ownGuestMenu(g: Row) {
     const tags = this.data.d!.game.tags || []
-    const items = ['退出这位朋友', '备注…', ...(tags.length && g.status === 'registered' ? ['标签…'] : [])]
+    const hasFee = !!this.data.d!.game.fee && g.status === 'registered'
+    const items = ['退出这位朋友', '备注…', ...(hasFee ? ['缴费…'] : []), ...(tags.length && g.status === 'registered' ? ['标签…'] : [])]
     let pick: number
     try {
       pick = (await wx.showActionSheet({ itemList: items })).tapIndex
@@ -637,6 +703,7 @@ Page({
     }
     if (pick === 0) return this.onCancelGuest({ currentTarget: { dataset: { index: g.guestIndex, name: g.name } } } as any)
     if (pick === 1) return this.editNote(g.openid, g.note || '', g.name)
+    if (items[pick] === '缴费…') return this.choosePayment(g.openid, (g.pay && g.pay.status) || 'unpaid', 0)
     try {
       const mine = g.tags || []
       const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
@@ -749,6 +816,8 @@ Page({
     const d = this.data.d
     if (!d) return
     const g = d.game
+    const payText = (r: RegView) =>
+      g.fee && r.pay && r.pay.status !== 'unpaid' ? `［${r.pay.status === 'refunded' ? '已退款' : `已付 ${r.pay.label || ''}`}］` : ''
     const party = (r: RegView) => {
       const n = this.data.registered.filter((x) => x.ownerOpenid === r.openid).length
       return n ? `（共 ${n + 1} 人）` : ''
@@ -760,6 +829,7 @@ Page({
       return (
         r.name +
         party(r) +
+        payText(r) +
         (stats ? ` (${stats})` : '') +
         ((r.tags || []).length ? ` [${(r.tags || []).join('][')}]` : '') +
         (r.note ? `（${r.note}）` : '')
@@ -767,6 +837,7 @@ Page({
     }
     const lines = [g.title, `${g.local.start}–${g.local.end}`, `📍 ${g.venue.name}`, `已报名 ${d.registered.length}/${g.capacity}`]
     if (this.data.tagStats) lines.push(this.data.tagStats)
+    if (this.data.feeStatsText) lines.push(`💲 ${this.data.feeText}｜${this.data.feeStatsText}`)
     this.data.registered.forEach((r, i) => lines.push(`${i + 1}. ${withTags(r)}`))
     if (this.data.waitlist.length) {
       lines.push('', '替补：')
@@ -779,7 +850,7 @@ Page({
           r.cancelledFrom === 'waitlist'
             ? '退出替补'
             : (r.cancelPhase === 'penalty' ? '临时退出，' : '') + (r.refilledBy ? `已补上：${r.refilledBy}` : '没人补上')
-        lines.push(`${i + 1}. ${r.name} ${fmtShort(r.cancelledAt)} 退出（${what}）`)
+        lines.push(`${i + 1}. ${r.name} ${fmtShort(r.cancelledAt)} 退出（${what}）${payText(r)}`)
       })
     }
     wx.setClipboardData({ data: lines.join('\n') })
@@ -921,21 +992,25 @@ Page({
       })
     }
     const tags = d.game.tags || []
-    if (status === 'registered' && tags.length && row) {
-      items.push({
-        label: '标签…',
-        run: async () => {
-          const mine = row.tags || []
-          try {
-            const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
-            const tag = tags[r.tapIndex]
-            this.toggleTagFor(openid, tag, !mine.includes(tag))
-            return null // 已即时更新界面，不必整页刷新
-          } catch (err) {
-            return null
-          }
-        },
-      })
+    const pickTag = async () => {
+      if (!row) return null
+      const mine = row.tags || []
+      try {
+        const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
+        this.toggleTagFor(openid, tags[r.tapIndex], !mine.includes(tags[r.tapIndex]))
+      } catch (err) {
+        // 取消
+      }
+      return null // 已即时更新界面
+    }
+    const canTag = status === 'registered' && tags.length > 0 && !!row
+    if (d.game.fee && row) {
+      const payStatus = (row.pay && row.pay.status) || 'unpaid'
+      if (status === 'registered') {
+        items.push({ label: `缴费…（${payLabel(row.pay)}）`, run: () => this.choosePayment(openid, payStatus, 0, true) })
+      } else if (status === 'cancelled' && payStatus === 'paid') {
+        items.push({ label: '缴费：标记已退款…', run: () => this.choosePayment(openid, payStatus, 0, true) })
+      }
     }
     if (d.club.finesEnabled !== false && !(row && row.isGuest)) items.push({
       label: '添加其他罚款（如穿钉鞋）',
@@ -968,8 +1043,17 @@ Page({
       // 朋友没有账号：只能改备注（名字跟着报名人走）
       if (status === 'registered' || status === 'waitlist') {
         items.push({
-          label: '备注…',
+          label: canTag ? '标签 / 备注…' : '备注…',
           run: async () => {
+            if (canTag) {
+              let pick: number
+              try {
+                pick = (await wx.showActionSheet({ itemList: ['标签…', '修改备注'] })).tapIndex
+              } catch (err) {
+                return null
+              }
+              if (pick === 0) return pickTag()
+            }
             await this.editNote(openid, row.note || '', name)
             return null
           },
@@ -977,15 +1061,17 @@ Page({
       }
     } else if (row && (status === 'registered' || status === 'waitlist')) {
       items.push({
-        label: '备注 / 名字…',
+        label: canTag ? '标签 / 备注 / 名字…' : '备注 / 名字…',
         run: async () => {
+          const opts = [...(canTag ? ['标签…'] : []), '修改备注', '修改名字']
           let pick: number
           try {
-            pick = (await wx.showActionSheet({ itemList: ['修改备注', '修改名字'] })).tapIndex
+            pick = (await wx.showActionSheet({ itemList: opts })).tapIndex
           } catch (err) {
             return null
           }
-          if (pick === 1) return rename()
+          if (opts[pick] === '标签…') return pickTag()
+          if (opts[pick] === '修改名字') return rename()
           await this.editNote(openid, row.note || '', name)
           return null // 已即时更新界面
         },

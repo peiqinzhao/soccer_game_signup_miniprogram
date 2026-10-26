@@ -25,6 +25,8 @@ const DEFAULT_SETTINGS = {
   finesEnabled: true, // 关闭后整个球队不产生任何罚款、不拦截报名
   matchStatsEnabled: false, // 记录进球/助攻（足球等用；网球、羽毛球等可不开）
   guestsMax: 0, // 每人最多带几位朋友一起报名；0 = 不允许
+  // 收费：最多两档价格，付款人标记已付时自己选（如 赛前 $17 / 赛后 $19）
+  fee: { enabled: false, tiers: [{ label: '赛前', cents: 1700 }, { label: '赛后', cents: 1900 }] },
   // 自评等级：off 不使用；labels 文字档位；numeric 数字等级（如网球 NTRP 1.0–7.0，间隔 0.5）
   rating: { mode: 'off', labels: ['入门', '中级', '高手'], min: 1, max: 7, step: 0.5 },
 }
@@ -84,6 +86,20 @@ function levelOptions(rating) {
 // 当前设置下这个等级还有效就返回它，否则返回 ''（球队改了等级方式后旧值不再显示）
 function validLevel(rating, level) {
   return level && levelOptions(rating).includes(level) ? level : ''
+}
+
+// 校验收费设置：1–2 档，名称 1–6 字，金额 0–$1000
+function cleanFee(input) {
+  const f = { ...DEFAULT_SETTINGS.fee, ...(input || {}) }
+  const tiers = (Array.isArray(f.tiers) ? f.tiers : [])
+    .map((t) => ({ label: String((t && t.label) || '').trim(), cents: Math.round(Number(t && t.cents)) }))
+    .filter((t) => t.label || t.cents)
+  if (f.enabled && (tiers.length < 1 || tiers.length > 2)) throw new Error('收费需要 1–2 档价格')
+  for (const t of tiers) {
+    if (!t.label || t.label.length > 6) throw new Error('价格名称需为 1–6 个字')
+    if (!Number.isFinite(t.cents) || t.cents < 0 || t.cents > 100000) throw new Error('价格需在 $0–$1000 之间')
+  }
+  return { enabled: !!f.enabled, tiers: tiers.length ? tiers : DEFAULT_SETTINGS.fee.tiers }
 }
 
 const FINE_REASONS = {
@@ -169,6 +185,7 @@ module.exports = {
   FINE_REASONS,
   cleanTags,
   cleanRating,
+  cleanFee,
   levelOptions,
   validLevel,
   cancelPhase,

@@ -42,6 +42,7 @@ const ACTIONS = {
   setAttendance: game.setAttendance,
   toggleTag: game.toggleTag,
   setRegNote: game.setRegNote,
+  setPayment: game.setPayment,
   setMatchStats: game.setMatchStats,
   setGameTags: game.setGameTags,
   fineNoForward: game.fineNoForward,

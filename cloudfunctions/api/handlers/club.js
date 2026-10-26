@@ -13,7 +13,7 @@ const {
   fileUrls,
   mustGetClub,
 } = require('../lib/db')
-const { DEFAULT_SETTINGS, cleanTags, cleanRating, validLevel, levelOptions } = require('../lib/rules')
+const { DEFAULT_SETTINGS, cleanTags, cleanRating, cleanFee, validLevel, levelOptions } = require('../lib/rules')
 const { isValidTimeZone } = require('../lib/time')
 
 function cleanSettings(input = {}) {
@@ -53,6 +53,13 @@ function cleanSettings(input = {}) {
   if (input.checkinEnabled !== undefined) s.checkinEnabled = !!input.checkinEnabled
   if (input.finesEnabled !== undefined) s.finesEnabled = !!input.finesEnabled
   if (input.matchStatsEnabled !== undefined) s.matchStatsEnabled = !!input.matchStatsEnabled
+  if (input.fee !== undefined) {
+    try {
+      s.fee = cleanFee(input.fee)
+    } catch (e) {
+      throw new UserError(e.message)
+    }
+  }
   if (input.rating !== undefined) {
     try {
       s.rating = cleanRating(input.rating)

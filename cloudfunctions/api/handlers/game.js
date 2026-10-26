@@ -41,6 +41,18 @@ const MP_STATE = { develop: 'developer', trial: 'trial', release: 'formal' }
 const mpState = (env) => MP_STATE[env] || 'formal'
 const NEW_MEMBER_MS = 14 * 24 * 60 * MIN
 
+// 本场价格：球队开启收费时，按球队的档位名称、表单给的金额（没给就用球队默认）
+function gameFee(s, feeCents) {
+  const fee = s.fee || {}
+  if (!fee.enabled) return null
+  const tiers = (fee.tiers || []).map((t, i) => {
+    const v = Array.isArray(feeCents) && feeCents[i] !== undefined && feeCents[i] !== '' ? Number(feeCents[i]) : t.cents
+    if (!(Number.isFinite(v) && v >= 0 && v <= 100000)) throw new UserError('价格需在 $0–$1000 之间')
+    return { label: t.label, cents: Math.round(v) }
+  })
+  return { tiers }
+}
+
 function tagsOrThrow(input) {
   try {
     return rules.cleanTags(input)
@@ -105,6 +117,7 @@ function buildGameFields(club, venue, f) {
     autoTeams: checkinOn && !!f.autoTeams,
     goalkeeper: checkinOn && !!f.autoTeams && !!f.goalkeeper,
     tags: tagsOrThrow(f.tags),
+    fee: gameFee(s, f.feeCents),
     fineCents: s.finesEnabled === false ? 0 : intIn(f.fineCents ?? s.fineCents, 0, 100000, '迟到罚款'),
     fineNoShowCents:
       s.finesEnabled === false ? 0 : intIn(f.fineNoShowCents ?? s.fineNoShowCents ?? s.fineCents, 0, 100000, '未到罚款'),
@@ -219,6 +232,7 @@ async function gameForm({ openid, clubId, gameId, copyLast }) {
     autoTeams: !!src.autoTeams,
     goalkeeper: !!src.goalkeeper,
     tags: src.tags || [],
+    feeCents: src.fee ? src.fee.tiers.map((t) => t.cents) : null,
     lateGraceMin: src.lateGraceMin,
     fineCents: src.fineCents,
     fineNoShowCents: src.fineNoShowCents ?? src.fineCents,
@@ -374,6 +388,7 @@ async function getGame({ openid, gameId }) {
       cancelledFrom: r.cancelledFrom || '',
       tags: (r.tags || []).filter((t) => (game.tags || []).includes(t)),
       note: r.note || '',
+      pay: r.pay && r.pay.status ? r.pay : { status: 'unpaid' },
       checkinAt: r.checkinAt || 0,
       checkinMethod: r.checkinMethod || '',
       attendance: r.attendance || '',
@@ -408,6 +423,19 @@ async function getGame({ openid, gameId }) {
     const fromRoster = r.spotAt > 0 && r.cancelledFrom !== 'waitlist'
     return { ...v, cancelledFrom: fromRoster ? 'registered' : 'waitlist', refilledBy: fromRoster ? refill[v.openid] || '' : '' }
   })
+  // 缴费统计：已报名的人里谁付了；退出了但付过钱、还没退款的要提醒管理员
+  const registeredRows = pick('registered', 'spotAt')
+  const cancelledRows = cancelled
+  const payOf = (v) => (v.pay && v.pay.status) || 'unpaid'
+  const feeStats = game.fee
+    ? {
+        paid: registeredRows.filter((v) => payOf(v) === 'paid').length,
+        total: registeredRows.length,
+        collectedCents: registeredRows.filter((v) => payOf(v) === 'paid').reduce((sum, v) => sum + v.pay.cents, 0),
+        toRefund: cancelledRows.filter((v) => payOf(v) === 'paid').length,
+        toRefundCents: cancelledRows.filter((v) => payOf(v) === 'paid').reduce((sum, v) => sum + v.pay.cents, 0),
+      }
+    : null
   const cancelStats = {
     fromRoster: cancelled.filter((c) => c.cancelledFrom === 'registered').length,
     refilled: cancelled.filter((c) => c.cancelledFrom === 'registered' && c.refilledBy).length,
@@ -457,10 +485,11 @@ async function getGame({ openid, gameId }) {
       matchStatsEnabled: !!club.settings.matchStatsEnabled,
       guestsMax: club.settings.guestsMax || 0,
     },
-    registered: pick('registered', 'spotAt'),
+    registered: registeredRows,
     waitlist: pick('waitlist', 'waitlistAt'),
     cancelled,
     cancelStats,
+    feeStats,
     me: {
       openid,
       isMember: !!member,
@@ -1054,8 +1083,38 @@ async function setMatchStats({ openid, gameId, goals, assists, target }) {
   return { goals: nextGoals, assists: nextAssists }
 }
 
+// 标记缴费：tier = 选的价格档；status: paid / unpaid / refunded（已退款仅管理员、仅已退出的人）
+// party = true：报名人把自己和带的朋友一起标记
+async function setPayment({ openid, gameId, target, status, tier, party }) {
+  const game = await mustGet('games', gameId, '比赛')
+  if (!game.fee) throw new UserError('本场比赛没有开启收费')
+  if (!['paid', 'unpaid', 'refunded'].includes(status)) throw new UserError('缴费状态无效')
+  const who = target || openid
+  const reg = await getDoc('registrations', regId(gameId, who))
+  if (!reg) throw new UserError('没有找到报名记录')
+  if (status === 'refunded') {
+    await requireAdmin(game.clubId, openid)
+    if (reg.status !== 'cancelled') throw new UserError('只有已退出的人可以标记已退款')
+  } else {
+    await requireSelfOwnerOrAdmin(game, openid, reg)
+  }
+  let pay = { status: 'unpaid' }
+  if (status === 'paid') {
+    const t = game.fee.tiers[Number(tier) || 0]
+    if (!t) throw new UserError('价格档位无效')
+    pay = { status: 'paid', tier: Number(tier) || 0, label: t.label, cents: t.cents, by: openid, at: Date.now() }
+  } else if (status === 'refunded') {
+    pay = { ...(reg.pay || {}), status: 'refunded', refundedBy: openid, refundedAt: Date.now() }
+  }
+  const rows = [reg]
+  if (party && !reg.ownerOpenid) rows.push(...(await activeGuests(gameId, reg.openid)))
+  for (const r of rows) await db.collection('registrations').doc(r._id).update({ data: { pay } })
+  return { pay, count: rows.length }
+}
+
 module.exports = {
   archiveGame,
+  setPayment,
   setRegNote,
   setMatchStats,
   buildGameFields,

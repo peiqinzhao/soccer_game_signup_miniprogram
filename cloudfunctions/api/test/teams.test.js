@@ -668,3 +668,52 @@ test('owner leaving takes their friends along', async () => {
   assert.deepStrictEqual(g2.registered.map((r) => r.name), ['W', 'O', 'O+1'])
   assert.ok(!g2.cancelled.some((r) => r.name === 'O+2'))
 })
+
+test('fees: two price tiers chosen by the payer, party payment, refund after leaving', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-08', '19:00', tz)
+  fake.setNow(startAt - 3 * 24 * 60 * MIN)
+  for (const id of ['o', 'z', 'y']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'B' })
+  assert.match(await apiErr('o', 'updateClub', { clubId, settings: { fee: { enabled: true, tiers: [{ label: '这个名字太长了吧', cents: 1 }] } } }), /1–6/)
+  await api('o', 'updateClub', {
+    clubId,
+    settings: { guestsMax: 2, fee: { enabled: true, tiers: [{ label: '赛前', cents: 1700 }, { label: '赛后', cents: 1900 }] } },
+  })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'Gym', ...VENUE } })
+  // 单场改价：赛前 $15
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-08', time: '19:00', timezone: tz, venueId, feeCents: [1500, ''] } })
+  assert.deepStrictEqual((await api('o', 'getGame', { gameId })).game.fee.tiers, [{ label: '赛前', cents: 1500 }, { label: '赛后', cents: 1900 }])
+  assert.deepStrictEqual((await api('o', 'gameForm', { clubId, gameId })).form.feeCents, [1500, 1900])
+
+  await api('z', 'signup', { gameId, inviter: 'o', guests: 2 })
+  await api('y', 'signup', { gameId, inviter: 'o' })
+  // 张三全组按赛前价付
+  assert.strictEqual((await api('z', 'setPayment', { gameId, status: 'paid', tier: 0, party: true })).count, 3)
+  // Y 自己选赛后价；Y 不能改别人的
+  await api('y', 'setPayment', { gameId, status: 'paid', tier: 1 })
+  assert.match(await apiErr('y', 'setPayment', { gameId, target: 'z', status: 'unpaid' }), /管理员/)
+  let g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.feeStats, { paid: 4, total: 4, collectedCents: 1500 * 3 + 1900, toRefund: 0, toRefundCents: 0 })
+  assert.deepStrictEqual(g.registered.map((r) => [r.name, r.pay.label]), [['Z', '赛前'], ['Z+1', '赛前'], ['Z+2', '赛前'], ['Y', '赛后']])
+
+  // 退掉一位朋友：应收只算还在的人，退出但已付的提醒管理员
+  await api('z', 'cancelSignup', { gameId, guestIndex: 2 })
+  g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.feeStats, { paid: 3, total: 3, collectedCents: 1500 * 2 + 1900, toRefund: 1, toRefundCents: 1500 })
+  assert.match(await apiErr('z', 'setPayment', { gameId, target: 'z#g2', status: 'refunded' }), /管理员/)
+  assert.match(await apiErr('o', 'setPayment', { gameId, target: 'z', status: 'refunded' }), /只有已退出/)
+  await api('o', 'setPayment', { gameId, target: 'z#g2', status: 'refunded' })
+  g = await api('o', 'getGame', { gameId })
+  assert.strictEqual(g.feeStats.toRefund, 0)
+  assert.strictEqual(g.cancelled[0].pay.status, 'refunded')
+  // 没开收费的比赛不能标
+  await api('o', 'updateClub', { clubId, settings: { fee: { enabled: false } } })
+  const { gameId: g2 } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-15', time: '19:00', timezone: tz, venueId } })
+  assert.strictEqual((await api('o', 'getGame', { gameId: g2 })).game.fee, null)
+  await api('z', 'signup', { gameId: g2, inviter: 'o' })
+  assert.match(await apiErr('z', 'setPayment', { gameId: g2, status: 'paid', tier: 0 }), /没有开启收费/)
+})
