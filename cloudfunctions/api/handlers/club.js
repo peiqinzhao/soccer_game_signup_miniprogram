@@ -26,7 +26,7 @@ function cleanSettings(input = {}) {
     fineNoShowCents: [0, 100000],
     fineLateCancelCents: [0, 100000],
     cancelDeadlineHours: [0, 168],
-    checkinRadiusM: [30, 2000],
+    checkinRadiusM: [10, 2000],
     checkinOpenBeforeMin: [0, 240],
     penaltyWindowMin: [0, 7 * 24 * 60],
     cancelDeadlineDaysBefore: [0, 7],
@@ -213,8 +213,10 @@ async function saveVenue({ openid, clubId, venue }) {
     address: String(venue.address || '').trim(),
     lat,
     lng,
-    radiusM: Math.max(30, Math.min(2000, Math.round(Number(venue.radiusM) || DEFAULT_SETTINGS.checkinRadiusM))),
+    radiusM: Math.round(Number(venue.radiusM) || DEFAULT_SETTINGS.checkinRadiusM),
   }
+  // 超出范围直接提示，不悄悄改值
+  if (!(data.radiusM >= 10 && data.radiusM <= 2000)) throw new UserError('签到范围需在 10–2000 米之间')
   if (venue._id) {
     const old = await mustGet('venues', venue._id, '场地')
     if (old.clubId !== clubId) throw new UserError('场地不属于该球队')

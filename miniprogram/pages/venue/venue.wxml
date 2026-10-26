@@ -24,6 +24,7 @@
       <text class="field-label">签到范围（米）</text>
       <input class="field-value" type="number" value="{{radiusM}}" data-key="radiusM" bindinput="onInput" />
     </view>
+    <view class="hint">可填 10–2000 米。手机定位在户外一般有 5–20 米误差，建议不小于 50 米，太小可能站在场边也签不上。</view>
   </view>
   <button class="btn" bindtap="save">保存</button>
   <button wx:if="{{venueId}}" class="btn btn-danger mt" bindtap="remove">删除场地</button>

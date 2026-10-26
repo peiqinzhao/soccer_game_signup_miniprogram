@@ -212,6 +212,11 @@ test('scheduled signup opening and default cancel deadline', async () => {
   await api('x', 'updateProfile', { nickname: 'X' })
   const { clubId } = await api('o', 'createClub', { name: 'T' })
   const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  // 签到范围：15 米可以保存，不会被悄悄改成 30；超出范围直接报错
+  await api('o', 'saveVenue', { clubId, venue: { _id: venueId, name: 'V', ...VENUE, radiusM: 15 } })
+  assert.strictEqual((await api('o', 'getClub', { clubId })).venues[0].radiusM, 15)
+  assert.match(await apiErr('o', 'saveVenue', { clubId, venue: { _id: venueId, name: 'V', ...VENUE, radiusM: 5 } }), /10–2000/)
+  await api('o', 'saveVenue', { clubId, venue: { _id: venueId, name: 'V', ...VENUE, radiusM: 100 } })
   const { gameId } = await api('o', 'saveGame', {
     clubId,
     form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, signupOpens: { date: '2026-10-01', time: '20:00' } },
