@@ -26,6 +26,7 @@ function cleanSettings(input = {}) {
     fineNoShowCents: [0, 100000],
     fineLateCancelCents: [0, 100000],
     cancelDeadlineHours: [0, 168],
+    guestsMax: [0, 5],
     checkinRadiusM: [10, 2000],
     checkinOpenBeforeMin: [0, 240],
     penaltyWindowMin: [0, 7 * 24 * 60],

@@ -46,7 +46,7 @@ async function settleGame(game) {
     const attendance = rules.attendanceFor(reg.checkinAt, game)
     // 先生成罚款再记出勤：中途被打断时，这个人下次还会被处理（罚款按 ID 去重）
     const amount = rules.fineFor(game, attendance)
-    if (attendance !== 'on_time' && amount > 0 && !rules.isLatePromotion(reg, game)) {
+    if (!reg.ownerOpenid && attendance !== 'on_time' && amount > 0 && !rules.isLatePromotion(reg, game)) {
       await createFine({
         clubId: game.clubId,
         gameId: game._id,

@@ -24,6 +24,18 @@ const remind = require('./remind')
 
 const { MIN } = rules
 
+// 带朋友报名：每个朋友是一条独立的报名记录，openid 用 “报名人openid#g1” 这样的虚拟 ID，ownerOpenid 指向报名人
+const guestOpenid = (owner, i) => `${owner}#g${i}`
+const ACTIVE = ['registered', 'waitlist']
+async function activeGuests(gameId, owner) {
+  return listAll(db.collection('registrations').where({ gameId, ownerOpenid: owner, status: _.in(ACTIVE) }))
+}
+// 本人、或报名人管理自己带的朋友、或管理员
+async function requireSelfOwnerOrAdmin(game, openid, reg) {
+  if (reg.openid === openid || reg.ownerOpenid === openid) return
+  await requireAdmin(game.clubId, openid)
+}
+
 // 客户端 envVersion → 订阅消息 miniprogramState（点通知时打开哪个版本）
 const MP_STATE = { develop: 'developer', trial: 'trial', release: 'formal' }
 const mpState = (env) => MP_STATE[env] || 'formal'
@@ -333,6 +345,12 @@ async function getGame({ openid, gameId }) {
     game.clubId,
     regs.flatMap((r) => [r.openid, r.inviter]),
   )
+  // 朋友显示为“张三+1”，头像用报名人的
+  for (const r of regs) {
+    if (!r.ownerOpenid) continue
+    const owner = profiles[r.ownerOpenid] || { name: '未命名', avatar: '' }
+    profiles[r.openid] = { name: `${owner.name}+${r.guestIndex}`, avatar: owner.avatar, joinedAt: 0, role: '', level: '' }
+  }
   const now = Date.now()
   const view = (r) => {
     const p = profiles[r.openid] || { name: '未命名', avatar: '' }
@@ -342,6 +360,9 @@ async function getGame({ openid, gameId }) {
       avatar: p.avatar,
       isNew: !!p.joinedAt && now - p.joinedAt < NEW_MEMBER_MS,
       isAdmin: isAdminRole(p.role),
+      isGuest: !!r.ownerOpenid,
+      ownerOpenid: r.ownerOpenid || '',
+      guestIndex: r.guestIndex || 0,
       level: rules.validLevel(club.settings.rating, p.level),
       inviterName: r.inviter ? (profiles[r.inviter] || {}).name || '' : '',
       status: r.status,
@@ -434,6 +455,7 @@ async function getGame({ openid, gameId }) {
       finesEnabled: club.settings.finesEnabled !== false,
       levelOptions: rules.levelOptions(club.settings.rating),
       matchStatsEnabled: !!club.settings.matchStatsEnabled,
+      guestsMax: club.settings.guestsMax || 0,
     },
     registered: pick('registered', 'spotAt'),
     waitlist: pick('waitlist', 'waitlistAt'),
@@ -448,11 +470,12 @@ async function getGame({ openid, gameId }) {
       checkinOpensAt: rules.checkinOpensAt(game),
       openReminder: game.signupOpensAt > now ? await remind.hasOpenReminder(gameId, openid) : false,
       level: member ? rules.validLevel(club.settings.rating, member.level) : '',
+      guests: regs.filter((r) => r.ownerOpenid === openid && ACTIVE.includes(r.status)).map(view),
     },
   }
 }
 
-async function signup({ openid, gameId, inviter, subscribed, subscribedChange, envVersion }) {
+async function signup({ openid, gameId, inviter, subscribed, subscribedChange, envVersion, guests }) {
   const game = await mustGet('games', gameId, '比赛')
   const club = await mustGetClub(game.clubId)
   const finesOn = !club.settings || club.settings.finesEnabled !== false
@@ -479,11 +502,18 @@ async function signup({ openid, gameId, inviter, subscribed, subscribedChange, e
   }
   const validInviter =
     inviter && inviter !== openid && (await getMember(game.clubId, inviter)) ? inviter : ''
+  const maxGuests = club.settings.guestsMax || 0
+  const nGuests = Math.round(Number(guests) || 0)
+  if (nGuests < 0 || nGuests > maxGuests) {
+    throw new UserError(maxGuests ? `每人最多带 ${maxGuests} 位朋友` : '本球队不支持带朋友报名')
+  }
 
+  // 一起报上或一起进替补：剩余名额够 1+N 才全部报上
+  const seats = nGuests + 1
   const got = await db
     .collection('games')
-    .where({ _id: gameId, registeredCount: _.lt(game.capacity) })
-    .update({ data: { registeredCount: _.inc(1) } })
+    .where({ _id: gameId, registeredCount: _.lte(game.capacity - seats) })
+    .update({ data: { registeredCount: _.inc(seats) } })
   const status = got.stats.updated === 1 ? 'registered' : 'waitlist'
 
   await db
@@ -514,24 +544,96 @@ async function signup({ openid, gameId, inviter, subscribed, subscribedChange, e
         subscribed: status === 'waitlist' && !!subscribed,
         subscribedChange: !!subscribedChange,
         mpState: mpState(envVersion),
+        guestCount: nGuests,
       },
     })
-  return { status }
+  // 朋友：先清掉上次报名留下的，再按顺序建，排在报名人后面
+  await db.collection('registrations').where({ gameId, ownerOpenid: openid }).remove()
+  for (let i = 1; i <= nGuests; i++) {
+    const gid = guestOpenid(openid, i)
+    await db
+      .collection('registrations')
+      .doc(regId(gameId, gid))
+      .set({
+        data: {
+          gameId,
+          clubId: game.clubId,
+          openid: gid,
+          ownerOpenid: openid,
+          guestIndex: i,
+          status,
+          inviter: '',
+          signedAt: now,
+          spotAt: status === 'registered' ? now : 0,
+          waitlistAt: status === 'waitlist' ? now + i : 0,
+          promotedAt: 0,
+          cancelledAt: 0,
+          cancelPhase: '',
+          checkinAt: 0,
+          attendance: '',
+          team: '',
+          gk: 0,
+          teamInitial: false,
+          tags: [],
+          note: '',
+          goals: 0,
+          assists: 0,
+          subscribed: false,
+          subscribedChange: false,
+        },
+      })
+  }
+  return nGuests ? { status, guests: nGuests } : { status }
 }
 
-async function cancelSignup({ openid, gameId }) {
+// 退出一条报名记录（不处理罚款和递补）；返回释放的名额数
+async function leave(reg, now, phase) {
+  const wasRegistered = reg.status === 'registered'
+  await db
+    .collection('registrations')
+    .doc(reg._id)
+    .update({
+      data: {
+        status: 'cancelled',
+        cancelledAt: now,
+        cancelPhase: wasRegistered ? phase : 'free',
+        cancelledFrom: wasRegistered ? 'registered' : 'waitlist',
+      },
+    })
+  return wasRegistered ? 1 : 0
+}
+
+// guestIndex：只退出自己带的某位朋友（不自动罚款）；不传：本人退出，带的朋友一起退出
+async function cancelSignup({ openid, gameId, guestIndex }) {
   const game = await mustGet('games', gameId, '比赛')
+  const now = Date.now()
+  if (guestIndex) {
+    const g = await getDoc('registrations', regId(gameId, guestOpenid(openid, guestIndex)))
+    if (!g || !ACTIVE.includes(g.status)) throw new UserError('这位朋友没有在报名中')
+    if (game.status === 'active' && now >= game.cutoffAt) throw new UserError('已过签到截止时间，不能再退出')
+    if (g.status === 'registered' && g.checkinAt) throw new UserError('已经签到了，不能退出')
+    const phase = game.status === 'active' ? rules.cancelPhase(game, now) : 'free'
+    const freed = await leave(g, now, phase)
+    if (freed) await db.collection('games').doc(gameId).update({ data: { registeredCount: _.inc(-freed) } })
+    if (game.status === 'active') await promoteWaitlist(gameId)
+    return { phase: g.status === 'registered' ? phase : 'free', fined: false }
+  }
   const reg = await getDoc('registrations', regId(gameId, openid))
   if (!reg || (reg.status !== 'registered' && reg.status !== 'waitlist')) throw new UserError('你没有报名')
-  const now = Date.now()
   if (game.status === 'active' && now >= game.cutoffAt) throw new UserError('已过签到截止时间，不能再退出')
   if (reg.status === 'registered' && reg.checkinAt) throw new UserError('你已经签到了，不能退出报名')
+  // 本人退出：带的朋友一起退出（朋友不罚款）
+  const phaseNow = game.status === 'active' ? rules.cancelPhase(game, now) : 'free'
+  let freedGuests = 0
+  for (const g of await activeGuests(gameId, openid)) freedGuests += await leave(g, now, phaseNow)
+  if (freedGuests) await db.collection('games').doc(gameId).update({ data: { registeredCount: _.inc(-freedGuests) } })
 
   if (reg.status === 'waitlist') {
     await db
       .collection('registrations')
       .doc(reg._id)
       .update({ data: { status: 'cancelled', cancelledAt: now, cancelPhase: 'free', cancelledFrom: 'waitlist' } })
+    if (freedGuests && game.status === 'active') await promoteWaitlist(gameId)
     return { phase: 'free', fined: false }
   }
 
@@ -747,6 +849,15 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
   await db.collection('registrations').doc(reg._id).update({ data })
   // 迟到的人也要分队、排守门员
   await teams.afterCheckin(gameId, openid)
+  // 带的朋友跟着一起签到（迟到也一起迟到，但不单独罚款）
+  for (const g of await activeGuests(gameId, openid)) {
+    if (g.status !== 'registered' || g.checkinAt) continue
+    await db
+      .collection('registrations')
+      .doc(g._id)
+      .update({ data: { checkinAt: now, checkinMethod: 'owner', ...(game.settledAt ? { attendance } : {}) } })
+    await teams.afterCheckin(gameId, g.openid)
+  }
   return { attendance, distanceM: data.checkinDistanceM }
 }
 
@@ -785,6 +896,16 @@ async function setAttendance({ openid, gameId, target, attendance }) {
     return {}
   }
 
+  if (reg.ownerOpenid) {
+    // 朋友：只改出勤和签到时间，不产生罚款
+    const presentGuest = attendance !== 'no_show'
+    await db
+      .collection('registrations')
+      .doc(reg._id)
+      .update({ data: { attendance, checkinMethod: 'admin', ...(presentGuest && !reg.checkinAt ? { checkinAt: Date.now() } : {}) } })
+    if (presentGuest && Date.now() <= game.endAt) await teams.afterCheckin(gameId, target)
+    return {}
+  }
   const present = attendance !== 'no_show'
   await db
     .collection('registrations')
@@ -826,6 +947,7 @@ async function fineNoForward({ openid, gameId, target }) {
   const game = await mustGet('games', gameId, '比赛')
   await requireAdmin(game.clubId, openid)
   const reg = await getDoc('registrations', regId(gameId, target))
+  if (reg && reg.ownerOpenid) throw new UserError('朋友不单独罚款，罚款记在报名人身上')
   if (!reg || reg.status !== 'cancelled' || reg.cancelPhase !== 'warn') {
     throw new UserError('只能对提醒转发时间内退出的人使用')
   }
@@ -847,9 +969,9 @@ async function toggleTag({ openid, gameId, tag, target, on }) {
   const game = await mustGet('games', gameId, '比赛')
   if (!(game.tags || []).includes(tag)) throw new UserError('本场没有这个标签')
   const who = target || openid
-  if (who !== openid) await requireAdmin(game.clubId, openid)
   const reg = await getDoc('registrations', regId(gameId, who))
   if (!reg || reg.status !== 'registered') throw new UserError('只有已报名的人可以打标签')
+  await requireSelfOwnerOrAdmin(game, openid, reg)
   const has = (reg.tags || []).includes(tag)
   const want = on === undefined ? !has : !!on
   if (want !== has) {
@@ -891,9 +1013,9 @@ async function checkText(openid, content) {
 async function setRegNote({ openid, gameId, note, target }) {
   const game = await mustGet('games', gameId, '比赛')
   const who = target || openid
-  if (who !== openid) await requireAdmin(game.clubId, openid)
   const reg = await getDoc('registrations', regId(gameId, who))
   if (!reg || (reg.status !== 'registered' && reg.status !== 'waitlist')) throw new UserError('只有报名或替补的人可以写备注')
+  await requireSelfOwnerOrAdmin(game, openid, reg)
   const text = String(note || '').replace(/\s+/g, ' ').trim()
   if (text.length > NOTE_MAX) throw new UserError(`备注最多 ${NOTE_MAX} 个字`)
   if (text) await checkText(openid, text)

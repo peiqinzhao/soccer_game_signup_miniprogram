@@ -587,3 +587,84 @@ test('cancelled list shows who refilled each dropped spot, with stats', async ()
   })
   assert.deepStrictEqual(g.cancelStats, { fromRoster: 3, refilled: 2, fromWaitlist: 1 })
 })
+
+test('bringing friends: atomic signup, owner-managed guests, group check-in, one fine', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  fake.setNow(startAt - 3 * 24 * 60 * MIN)
+  for (const id of ['o', 'a', 'b', 'x']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, capacity: 4 } })
+  assert.match(await apiErr('a', 'signup', { gameId, inviter: 'o', guests: 1 }), /不支持带朋友/)
+  await api('o', 'updateClub', { clubId, settings: { guestsMax: 2 } })
+  assert.match(await apiErr('a', 'signup', { gameId, inviter: 'o', guests: 3 }), /最多带 2/)
+
+  const step = () => fake.setNow(Date.now() + MIN)
+  step(); assert.deepStrictEqual(await api('o', 'signup', { gameId, guests: 2 }), { status: 'registered', guests: 2 }) // 3/4
+  step(); assert.deepStrictEqual(await api('a', 'signup', { gameId, inviter: 'o', guests: 1 }), { status: 'waitlist', guests: 1 }) // 需要 2 个名额，只剩 1 个 → 一起替补
+  step(); assert.deepStrictEqual(await api('b', 'signup', { gameId, inviter: 'o' }), { status: 'registered' }) // 4/4
+  let g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => r.name), ['O', 'O+1', 'O+2', 'B'])
+  assert.deepStrictEqual(g.waitlist.map((r) => r.name), ['A', 'A+1'])
+  assert.strictEqual(g.game.registeredCount, 4)
+  assert.deepStrictEqual(g.me.guests.map((r) => [r.name, r.isGuest]), [['O+1', true], ['O+2', true]])
+  assert.strictEqual(g.club.guestsMax, 2)
+
+  // 报名人管理朋友的备注；别人不能改
+  await api('o', 'setRegNote', { gameId, target: 'o#g1', note: '我同事' })
+  assert.match(await apiErr('b', 'setRegNote', { gameId, target: 'o#g1', note: 'x' }), /管理员/)
+
+  // 只退出一位朋友：A 递补上来，A+1 还在替补（按顺序逐个递补）
+  step(); await api('o', 'cancelSignup', { gameId, guestIndex: 2 })
+  g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => r.name), ['O', 'O+1', 'B', 'A'])
+  assert.deepStrictEqual(g.waitlist.map((r) => r.name), ['A+1'])
+  assert.strictEqual(g.cancelled.find((r) => r.name === 'O+2').refilledBy, 'A')
+
+  // 报名人签到 = 朋友一起签到；迟到只罚报名人一笔
+  fake.setNow(startAt + 15 * MIN)
+  await api('o', 'checkin', { gameId, ...VENUE })
+  g = await api('o', 'getGame', { gameId }) // 结算
+  const att = Object.fromEntries(g.registered.map((r) => [r.name, r.attendance]))
+  assert.deepStrictEqual(att, { O: 'late', 'O+1': 'late', B: 'no_show', A: 'no_show' })
+  const fines = (await api('o', 'listFines', { clubId, status: 'pending' })).fines.map((f) => f.openid).sort()
+  assert.deepStrictEqual(fines, ['a', 'b', 'o'])
+  assert.match(await apiErr('o', 'fineNoForward', { gameId, target: 'o#g2' }), /朋友不单独罚款/)
+
+  // 数据榜不计朋友
+  const lb = await api('o', 'leaderboard', { clubId })
+  assert.ok(lb.rows.every((r) => !r.openid.includes('#g')))
+})
+
+test('owner leaving takes their friends along', async () => {
+  fake.reset()
+  const startAt = T.zonedToUtcMs('2026-10-04', '10:00', tz)
+  fake.setNow(startAt - 3 * 24 * 60 * MIN)
+  for (const id of ['o', 'w']) {
+    await api(id, 'login')
+    await api(id, 'updateProfile', { nickname: id.toUpperCase() })
+  }
+  const { clubId } = await api('o', 'createClub', { name: 'T' })
+  await api('o', 'updateClub', { clubId, settings: { guestsMax: 2 } })
+  const { venueId } = await api('o', 'saveVenue', { clubId, venue: { name: 'V', ...VENUE } })
+  const { gameId } = await api('o', 'saveGame', { clubId, form: { date: '2026-10-04', time: '10:00', timezone: tz, venueId, capacity: 3 } })
+  await api('o', 'signup', { gameId, guests: 2 })
+  fake.setNow(Date.now() + MIN)
+  await api('w', 'signup', { gameId, inviter: 'o' }) // 替补
+  fake.setNow(Date.now() + MIN)
+  await api('o', 'cancelSignup', { gameId })
+  const g = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g.registered.map((r) => r.name), ['W'])
+  assert.deepStrictEqual(g.cancelled.map((r) => r.name).sort(), ['O', 'O+1', 'O+2'])
+  assert.strictEqual(g.game.registeredCount, 1)
+  // 重新报名只带 1 位：旧的朋友记录被清掉
+  fake.setNow(Date.now() + MIN)
+  await api('o', 'signup', { gameId, guests: 1 })
+  const g2 = await api('o', 'getGame', { gameId })
+  assert.deepStrictEqual(g2.registered.map((r) => r.name), ['W', 'O', 'O+1'])
+  assert.ok(!g2.cancelled.some((r) => r.name === 'O+2'))
+})

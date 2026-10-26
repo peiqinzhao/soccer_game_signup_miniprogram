@@ -293,6 +293,17 @@ Page({
   async join() {
     const sub = await askSubscribe([PROMOTED_TEMPLATE_ID, CHANGED_TEMPLATE_ID])
     const subscribed = !!sub[PROMOTED_TEMPLATE_ID]
+    // 球队允许带朋友时，先选人数
+    let guests = 0
+    const max = this.data.d!.club.guestsMax || 0
+    if (max > 0) {
+      const opts = ['只有我', ...Array.from({ length: max }, (_, i) => `我 + ${i + 1} 位朋友`)]
+      try {
+        guests = (await wx.showActionSheet({ itemList: opts })).tapIndex
+      } catch (e) {
+        return
+      }
+    }
     if (!(await this.readyToSignup())) return
     const res = await run<{ status: string }>(
       'signup',
@@ -302,15 +313,16 @@ Page({
         subscribed,
         subscribedChange: !!sub[CHANGED_TEMPLATE_ID],
         envVersion: envVersion(),
+        guests,
       },
       '报名中',
     )
     if (!res) return
     if (res.status === 'registered') {
-      wx.showToast({ title: '报名成功', icon: 'success' })
+      wx.showToast({ title: guests ? `已报名 ${guests + 1} 人` : '报名成功', icon: 'success' })
     } else {
       wx.showModal({
-        title: '名额已满，已进入替补',
+        title: guests ? `名额不够 ${guests + 1} 人一起，已一起进入替补` : '名额已满，已进入替补',
         content: subscribed ? '有人退出时会自动递补，并通过微信通知你。' : '有人退出时会自动递补。你没有开启通知，请留意群消息。',
         showCancel: false,
       })
@@ -369,10 +381,12 @@ Page({
     const g = d.game
     const isWaitlist = this.data.myStatus === 'waitlist'
     const phase: Phase = isWaitlist ? 'free' : cancelPhase(g, now())
+    const nGuests = (d.me.guests || []).length
+    const withGuests = nGuests ? `你带的 ${nGuests} 位朋友也会一起退出。` : ''
     const content = isWaitlist
-      ? '确定退出替补？'
+      ? `确定退出替补？${withGuests}`
       : phase === 'free'
-        ? '确定退出报名？'
+        ? `确定退出报名？${withGuests}`
         : phase === 'warn'
           ? `离开场不到 ${this.data.forwardHoursText} 小时了，退出后请转发到群里，方便没报上的人递补。`
           : this.data.lateCancelFine > 0
@@ -394,6 +408,18 @@ Page({
       return
     }
     this.setData({ shareDialog: { show: true, phase: res.phase, fined: res.fined } })
+  },
+
+  async onCancelGuest(e: WechatMiniprogram.TouchEvent) {
+    const idx: number = Number(e.currentTarget.dataset.index)
+    const name: string = e.currentTarget.dataset.name
+    const r = await wx.showModal({ title: `退出 ${name}`, content: '只退出这位朋友，你自己的报名不变。空出的名额会自动递补。', confirmText: '退出' })
+    if (!r.confirm) return
+    const res = await run<{ phase: Phase }>('cancelSignup', { gameId: this.data.id, guestIndex: idx }, '处理中')
+    if (!res) return
+    await this.load()
+    if (res.phase !== 'free') this.setData({ shareDialog: { show: true, phase: res.phase, fined: false } })
+    else wx.showToast({ title: '已退出', icon: 'none' })
   },
 
   closeShareDialog() {
@@ -599,6 +625,27 @@ Page({
     })
   },
 
+  // 非管理员点自己带的朋友：退出 / 备注 / 标签
+  async ownGuestMenu(g: Row) {
+    const tags = this.data.d!.game.tags || []
+    const items = ['退出这位朋友', '备注…', ...(tags.length && g.status === 'registered' ? ['标签…'] : [])]
+    let pick: number
+    try {
+      pick = (await wx.showActionSheet({ itemList: items })).tapIndex
+    } catch (err) {
+      return
+    }
+    if (pick === 0) return this.onCancelGuest({ currentTarget: { dataset: { index: g.guestIndex, name: g.name } } } as any)
+    if (pick === 1) return this.editNote(g.openid, g.note || '', g.name)
+    try {
+      const mine = g.tags || []
+      const r = await wx.showActionSheet({ itemList: tags.map((t) => (mine.includes(t) ? `✓ ${t}（点击取消）` : t)) })
+      this.toggleTagFor(g.openid, tags[r.tapIndex], !mine.includes(tags[r.tapIndex]))
+    } catch (err) {
+      // 取消
+    }
+  },
+
   // ---------- 报名备注 ----------
 
   onEditMyNote() {
@@ -702,12 +749,17 @@ Page({
     const d = this.data.d
     if (!d) return
     const g = d.game
+    const party = (r: RegView) => {
+      const n = this.data.registered.filter((x) => x.ownerOpenid === r.openid).length
+      return n ? `（共 ${n + 1} 人）` : ''
+    }
     const withTags = (r: RegView) => {
       const stats = d.club.matchStatsEnabled
         ? [r.goals ? `${r.goals}球` : '', r.assists ? `${r.assists}助` : ''].filter(Boolean).join(' ')
         : ''
       return (
         r.name +
+        party(r) +
         (stats ? ` (${stats})` : '') +
         ((r.tags || []).length ? ` [${(r.tags || []).join('][')}]` : '') +
         (r.note ? `（${r.note}）` : '')
@@ -781,7 +833,13 @@ Page({
 
   async onPersonTap(e: WechatMiniprogram.TouchEvent) {
     const d = this.data.d!
-    if (!d.me.isAdmin) return
+    const tapped = this.data.list.find((x) => x.openid === e.currentTarget.dataset.openid)
+    if (!d.me.isAdmin) {
+      if (tapped && tapped.ownerOpenid === d.me.openid && (tapped.status === 'registered' || tapped.status === 'waitlist')) {
+        await this.ownGuestMenu(tapped)
+      }
+      return
+    }
     const openid: string = e.currentTarget.dataset.openid
     const name: string = e.currentTarget.dataset.name
     const status: string = e.currentTarget.dataset.status
@@ -879,7 +937,7 @@ Page({
         },
       })
     }
-    if (d.club.finesEnabled !== false) items.push({
+    if (d.club.finesEnabled !== false && !(row && row.isGuest)) items.push({
       label: '添加其他罚款（如穿钉鞋）',
       run: async () => {
         const r1 = await wx.showModal({ title: `罚款：${name}`, content: '', editable: true, placeholderText: '原因，如：穿钉鞋踩伤人' })
@@ -906,7 +964,18 @@ Page({
       if (!r.confirm || !next || next === name) return null
       return run('renameMember', { clubId: d.game.clubId, target: openid, name: next }, '保存中')
     }
-    if (row && (status === 'registered' || status === 'waitlist')) {
+    if (row && row.isGuest) {
+      // 朋友没有账号：只能改备注（名字跟着报名人走）
+      if (status === 'registered' || status === 'waitlist') {
+        items.push({
+          label: '备注…',
+          run: async () => {
+            await this.editNote(openid, row.note || '', name)
+            return null
+          },
+        })
+      }
+    } else if (row && (status === 'registered' || status === 'waitlist')) {
       items.push({
         label: '备注 / 名字…',
         run: async () => {
@@ -921,7 +990,7 @@ Page({
           return null // 已即时更新界面
         },
       })
-    } else {
+    } else if (!(row && row.isGuest)) {
       items.push({ label: '修改名字', run: rename })
     }
     if (items.length > 6) console.warn('action sheet has more than 6 items', items.map((i) => i.label))

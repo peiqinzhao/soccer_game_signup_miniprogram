@@ -105,7 +105,7 @@ async function leaderboard({ openid, clubId }) {
 
   for (const r of regs) {
     const g = activeGames[r.gameId]
-    if (!g) continue
+    if (!g || r.ownerOpenid) continue // 带来的朋友没有账号，不进数据榜
     if (!byPlayer[r.openid]) {
       const p = profiles[r.openid] || { name: '未命名', avatar: '' }
       byPlayer[r.openid] = {

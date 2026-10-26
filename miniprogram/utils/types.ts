@@ -29,6 +29,7 @@ export interface ClubSettings {
   checkinEnabled?: boolean
   finesEnabled?: boolean
   matchStatsEnabled?: boolean
+  guestsMax?: number
   rating?: RatingSettings
 }
 
@@ -89,6 +90,9 @@ export interface RegView {
   isNew: boolean
   isAdmin?: boolean
   level?: string
+  isGuest?: boolean // 带来的朋友（挂在报名人名下）
+  ownerOpenid?: string
+  guestIndex?: number
   inviterName: string
   status: 'registered' | 'waitlist' | 'cancelled'
   signedAt: number
@@ -157,6 +161,7 @@ export interface GameDetail {
     finesEnabled?: boolean
     levelOptions?: string[]
     matchStatsEnabled?: boolean
+    guestsMax?: number
   }
   registered: RegView[]
   waitlist: RegView[]
@@ -171,6 +176,7 @@ export interface GameDetail {
     checkinOpensAt: number
     openReminder: boolean
     level?: string
+    guests?: RegView[] // 我带的朋友（报名中/替补中）
   }
 }
 

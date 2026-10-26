@@ -59,6 +59,10 @@
       <text wx:else class="link">＋ 添加备注（如：6:20 到）</text>
       <text class="sub small">{{myNote ? '修改' : ''}}</text>
     </view>
+    <view wx:for="{{d.me.guests}}" wx:key="openid" class="row-between mt">
+      <text class="small">👤 {{item.name}}<text class="sub">（{{item.status === 'registered' ? '已报名' : '替补中'}}）</text></text>
+      <text class="link small" data-index="{{item.guestIndex}}" data-name="{{item.name}}" bindtap="onCancelGuest">退出</text>
+    </view>
     <picker wx:if="{{levelPicker.length}}" range="{{levelPicker}}" bindchange="onPickMyLevel">
       <view class="row-between mt">
         <text class="small">我的水平</text>
@@ -177,6 +181,7 @@
             <text class="ellipsis">{{item.name}}</text>
             <text wx:if="{{item.level}}" class="tag tag-level">{{item.level}}</text>
             <text wx:if="{{item.isAdmin}}" class="tag tag-admin">管理员</text>
+            <text wx:if="{{item.isGuest}}" class="tag">朋友</text>
             <text wx:if="{{item.isNew}}" class="tag tag-warn">新人</text>
             <text wx:if="{{item.badge}}" class="tag {{item.badgeClass}}">{{item.badge}}</text>
             <text wx:if="{{item.badge2}}" class="tag tag-bad">{{item.badge2}}</text>

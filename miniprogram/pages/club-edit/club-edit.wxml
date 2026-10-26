@@ -17,6 +17,10 @@
     <picker range="{{tzLabels}}" value="{{tzIndex}}" data-key="tzIndex" bindchange="onPick">
       <view class="field"><text class="field-label">默认时区</text><text class="field-value small">{{tzLabels[tzIndex]}} ›</text></view>
     </picker>
+    <picker range="{{guestOptions}}" value="{{guestsMaxIndex}}" data-key="guestsMaxIndex" bindchange="onPick">
+      <view class="field"><text class="field-label">带朋友报名</text><text class="field-value small">{{guestOptions[guestsMaxIndex]}} ›</text></view>
+    </picker>
+    <view wx:if="{{guestsMaxIndex > 0}}" class="hint">报名时可以选带几位朋友，名额够才一起报上，否则一起进替补。报名人签到算全组签到；迟到、未到只罚报名人一笔。</view>
     <view class="field">
       <text class="field-label">记录进球 / 助攻</text>
       <switch checked="{{matchStatsEnabled}}" data-key="matchStatsEnabled" bindchange="onSwitch" color="#111" />
