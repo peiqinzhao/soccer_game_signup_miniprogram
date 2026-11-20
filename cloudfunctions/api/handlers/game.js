@@ -838,7 +838,8 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
 
   const data = { checkinAt: now }
   if (code) {
-    if (!rules.verifyCheckinCode(game.checkinSecret, gameId, code, now)) throw new UserError('签到码错误或已过期')
+    const club = await getDoc('clubs', game.clubId)
+    if (!rules.verifyCheckinCode(game.checkinSecret, gameId, code, now, codePeriod(club))) throw new UserError('签到码错误或已过期')
     data.checkinMethod = 'code'
   } else {
     const pos = { lat: Number(lat), lng: Number(lng) }
@@ -891,14 +892,20 @@ async function checkin({ openid, gameId, lat, lng, accuracy, code }) {
   return { attendance, distanceM: data.checkinDistanceM }
 }
 
+function codePeriod(club) {
+  return (club && club.settings && club.settings.codeRefreshMin) || rules.DEFAULT_SETTINGS.codeRefreshMin
+}
+
 async function getCheckinCode({ openid, gameId }) {
   const game = await mustGet('games', gameId, '比赛')
   if (game.checkinEnabled === false) throw new UserError('本场比赛没有开启签到')
   await requireAdmin(game.clubId, openid)
   const now = Date.now()
+  const period = codePeriod(await getDoc('clubs', game.clubId))
   return {
-    code: rules.checkinCode(game.checkinSecret, gameId, now),
-    refreshAt: (Math.floor(now / MIN) + 1) * MIN,
+    code: rules.checkinCode(game.checkinSecret, gameId, now, period),
+    refreshAt: rules.codeRefreshAt(now, period),
+    periodMin: period,
   }
 }
 

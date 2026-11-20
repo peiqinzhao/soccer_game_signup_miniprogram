@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS = {
   fee: { enabled: false, tiers: [{ label: '赛前', cents: 1700 }, { label: '赛后', cents: 1900 }] },
   // 自评等级：off 不使用；labels 文字档位；numeric 数字等级（如网球 NTRP 1.0–7.0，间隔 0.5）
   rating: { mode: 'off', labels: ['入门', '中级', '高手'], min: 1, max: 7, step: 0.5 },
+  codeRefreshMin: 5, // 签到码每几分钟换一次
 }
 
 // 比赛自选标签：管理员定义（如“已付款”），队员自己打上或取消
@@ -164,19 +165,28 @@ function haversineM(a, b) {
 }
 
 // 现场签到码：每分钟变化的 4 位数字。校验时接受当前和上一分钟的码。
-function checkinCode(secret, gameId, now) {
-  const bucket = Math.floor(now / MIN)
-  return codeForBucket(secret, gameId, bucket)
+function codeBucket(now, periodMin) {
+  return Math.floor(now / ((periodMin || 1) * MIN))
 }
 
-function codeForBucket(secret, gameId, bucket) {
-  const h = crypto.createHmac('sha256', secret).update(`${gameId}:${bucket}`).digest()
+function codeForBucket(secret, gameId, periodMin, bucket) {
+  const key = periodMin > 1 ? `${gameId}:${periodMin}:${bucket}` : `${gameId}:${bucket}`
+  const h = crypto.createHmac('sha256', secret).update(key).digest()
   return String(h.readUInt32BE(0) % 10000).padStart(4, '0')
 }
 
-function verifyCheckinCode(secret, gameId, code, now) {
-  const bucket = Math.floor(now / MIN)
-  return [bucket, bucket - 1].some((b) => codeForBucket(secret, gameId, b) === String(code))
+function checkinCode(secret, gameId, now, periodMin = 1) {
+  return codeForBucket(secret, gameId, periodMin, codeBucket(now, periodMin))
+}
+
+// 当前和上一个时间段的码都有效（刚换码时不至于失败）
+function verifyCheckinCode(secret, gameId, code, now, periodMin = 1) {
+  const b = codeBucket(now, periodMin)
+  return [b, b - 1].some((x) => codeForBucket(secret, gameId, periodMin, x) === String(code))
+}
+
+function codeRefreshAt(now, periodMin = 1) {
+  return (codeBucket(now, periodMin) + 1) * (periodMin || 1) * MIN
 }
 
 module.exports = {
@@ -198,4 +208,5 @@ module.exports = {
   haversineM,
   checkinCode,
   verifyCheckinCode,
+  codeRefreshAt,
 }

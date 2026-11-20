@@ -129,7 +129,8 @@ test('full game flow', async () => {
   assert.match(await apiErr('a', 'cancelSignup', { gameId }), /已经签到/)
 
   // 签到码
-  const { code } = await api('owner', 'getCheckinCode', { gameId })
+  const { code, periodMin } = await api('owner', 'getCheckinCode', { gameId })
+  assert.strictEqual(periodMin, 5)
   assert.match(await apiErr('a', 'getCheckinCode', { gameId }), /管理员/)
 
   // 截止后打开详情 → 自动结算。C 没签到但属于晚递补，不罚款
@@ -140,6 +141,7 @@ test('full game flow', async () => {
   assert.deepStrictEqual(att, { A: 'on_time', C: 'no_show' })
 
   // C 迟到签到（签到码已过期，用 GPS）
+  fake.setNow(startAt + 16 * MIN)
   assert.match(await apiErr('c', 'checkin', { gameId, code }), /签到码错误或已过期/)
   assert.strictEqual((await api('c', 'checkin', { gameId, ...VENUE })).attendance, 'late')
 

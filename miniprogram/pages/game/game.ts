@@ -889,8 +889,12 @@ Page({
 
   async refreshCode() {
     try {
-      const c = await call<{ code: string; refreshAt: number }>('getCheckinCode', { gameId: this.data.id })
-      this.setData({ 'code.value': c.code, 'code.refreshText': `${fmtTime(c.refreshAt)} 更新` })
+      const c = await call<{ code: string; refreshAt: number; periodMin?: number }>('getCheckinCode', { gameId: this.data.id })
+      const p = c.periodMin || 1
+      this.setData({
+        'code.value': c.code,
+        'code.refreshText': `${p === 1 ? '每分钟' : `每 ${p} 分钟`}更新 · ${fmtTime(c.refreshAt)} 换下一个`,
+      })
     } catch (e) {
       this.stopCode()
       toastError(e)

@@ -721,3 +721,22 @@ test('fees: two price tiers chosen by the payer, party payment, refund after lea
   await api('z', 'signup', { gameId: g2, inviter: 'o' })
   assert.match(await apiErr('z', 'setPayment', { gameId: g2, status: 'paid', tier: 0 }), /没有开启收费/)
 })
+
+test('check-in code period is a club setting; venue edits reach unfinished games', async () => {
+  const { gameId, clubId } = await setup({ capacity: 4, teamSize: 2, teamCount: 2, players: 2 })
+  let c = await api('o', 'getCheckinCode', { gameId })
+  assert.strictEqual(c.periodMin, 5) // 老球队没有这个设置 → 默认 5 分钟
+  const club = (await api('o', 'getClub', { clubId })).club
+  await api('o', 'updateClub', { clubId, name: club.name, venmo: club.venmo, settings: { ...club.settings, codeRefreshMin: 10 } })
+  c = await api('o', 'getCheckinCode', { gameId })
+  assert.strictEqual(c.periodMin, 10)
+  assert.strictEqual(c.refreshAt % (10 * MIN), 0)
+
+  // 当天放宽签到范围：比赛里的场地同步更新，远处也能签到
+  const far = { lat: VENUE.lat + 0.004, lng: VENUE.lng } // 约 450 米
+  assert.match(await apiErr('p1', 'checkin', { gameId, ...far }), /距离/)
+  const g = await api('o', 'getGame', { gameId })
+  await api('o', 'saveVenue', { clubId, venue: { _id: g.game.venue.id, name: 'V', ...VENUE, radiusM: 600 } })
+  assert.strictEqual((await api('o', 'getGame', { gameId })).game.venue.radiusM, 600)
+  await api('p1', 'checkin', { gameId, ...far })
+})

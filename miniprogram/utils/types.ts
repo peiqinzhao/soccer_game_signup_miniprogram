@@ -32,6 +32,7 @@ export interface ClubSettings {
   guestsMax?: number
   fee?: { enabled: boolean; tiers: FeeTier[] }
   rating?: RatingSettings
+  codeRefreshMin?: number
 }
 
 export interface FeeTier {

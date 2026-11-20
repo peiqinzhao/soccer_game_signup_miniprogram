@@ -29,6 +29,7 @@ function cleanSettings(input = {}) {
     guestsMax: [0, 5],
     checkinRadiusM: [10, 2000],
     checkinOpenBeforeMin: [0, 240],
+    codeRefreshMin: [1, 60],
     penaltyWindowMin: [0, 7 * 24 * 60],
     cancelDeadlineDaysBefore: [0, 7],
   }
@@ -229,6 +230,12 @@ async function saveVenue({ openid, clubId, venue }) {
     const old = await mustGet('venues', venue._id, '场地')
     if (old.clubId !== clubId) throw new UserError('场地不属于该球队')
     await db.collection('venues').doc(venue._id).update({ data })
+    // 比赛创建时拷贝了场地；改场地（如临时放宽签到范围）要同步到还没结束的比赛
+    const games = await listAll(db.collection('games').where({ clubId, status: 'active', endAt: _.gte(Date.now()) }))
+    const snap = { id: venue._id, name, address: data.address, lat, lng, radiusM: data.radiusM }
+    for (const g of games.filter((x) => x.venue && x.venue.id === venue._id)) {
+      await db.collection('games').doc(g._id).update({ data: { venue: snap } })
+    }
     return { venueId: venue._id }
   }
   const res = await db.collection('venues').add({ data })

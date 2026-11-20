@@ -10,7 +10,9 @@ const NUM_FIELDS = [
   { key: 'lateGraceMin', label: '迟到宽限', unit: '分钟' },
   { key: 'checkinRadiusM', label: '新场地签到范围', unit: '米' },
   { key: 'checkinOpenBeforeMin', label: '签到开放（开赛前）', unit: '分钟' },
+  { key: 'codeRefreshMin', label: '签到码刷新间隔', unit: '分钟' },
 ]
+const NUM_DEFAULTS: Record<string, number> = { codeRefreshMin: 5 }
 
 Page({
   data: {
@@ -61,7 +63,7 @@ Page({
     if (!c) return
     const s = c.club.settings
     const nums: Record<string, string> = {}
-    for (const { key } of NUM_FIELDS) nums[key] = String((s as any)[key])
+    for (const { key } of NUM_FIELDS) nums[key] = String((s as any)[key] ?? NUM_DEFAULTS[key] ?? '')
     let tzIndex = TIMEZONES.findIndex((t) => t.id === s.timezone)
     if (tzIndex < 0) {
       TIMEZONES.push({ id: s.timezone, label: s.timezone })
